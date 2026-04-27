@@ -4508,3 +4508,816 @@ Notes d’entretien :
 - Clarifier si les espaces, la ponctuation et la casse doivent être ignorés ; si oui, normaliser l’entrée d’abord.
 
 </details>
+
+<details>
+<summary>85. Comment vérifier si un nombre est premier ?</summary>
+
+#### PHP
+
+Un nombre `n` est premier s’il possède exactement deux diviseurs positifs : `1` et `n`.  
+Vérification efficace : tester la divisibilité seulement jusqu’à `sqrt(n)`.
+
+```php
+<?php
+function isPrime(int $n): bool
+{
+    if ($n < 2) {
+        return false;
+    }
+
+    if ($n === 2) {
+        return true;
+    }
+
+    if ($n % 2 === 0) {
+        return false;
+    }
+
+    $limit = (int) sqrt($n);
+    for ($i = 3; $i <= $limit; $i += 2) {
+        if ($n % $i === 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+```
+
+Complexité :
+
+- Temps : `O(sqrt(n))`
+- Espace : `O(1)`
+
+C’est la solution d’entretien standard : correcte, suffisamment rapide et simple à justifier.
+
+</details>
+
+<details>
+<summary>86. Comment implémenter une factorielle avec la récursion ?</summary>
+
+#### PHP
+
+La factorielle récursive utilise la définition `n! = n * (n - 1)!` avec un cas de base `0! = 1` (et `1! = 1`).
+
+```php
+<?php
+function factorial(int $n): int
+{
+    if ($n < 0) {
+        throw new InvalidArgumentException('Factorial is undefined for negative numbers.');
+    }
+
+    if ($n === 0 || $n === 1) {
+        return 1;
+    }
+
+    return $n * factorial($n - 1);
+}
+```
+
+Complexité :
+
+- Temps : `O(n)`
+- Espace : `O(n)` à cause de la pile de récursion.
+
+Note d’entretien : la version itérative utilise une pile `O(1)` et est plus sûre pour des valeurs `n` très grandes.
+
+</details>
+
+<details>
+<summary>87. Comment implémenter un tri manuellement ?</summary>
+
+#### PHP
+
+Pour les entretiens, un exemple manuel clair est le tri à bulles (Bubble Sort) : échanger répétitivement les éléments adjacents s’ils sont dans le mauvais ordre.
+
+```php
+<?php
+function bubbleSort(array $arr): array
+{
+    $n = count($arr);
+
+    for ($i = 0; $i < $n - 1; $i++) {
+        $swapped = false;
+
+        for ($j = 0; $j < $n - 1 - $i; $j++) {
+            if ($arr[$j] > $arr[$j + 1]) {
+                $tmp = $arr[$j];
+                $arr[$j] = $arr[$j + 1];
+                $arr[$j + 1] = $tmp;
+                $swapped = true;
+            }
+        }
+
+        if (!$swapped) {
+            break;
+        }
+    }
+
+    return $arr;
+}
+```
+
+Complexité :
+
+- Temps pire/moyen cas : `O(n^2)`
+- Meilleur cas (déjà trié avec arrêt anticipé) : `O(n)`
+- Espace : `O(1)` supplémentaire (en ignorant la sémantique de copie de sortie)
+
+Si on vous demande un algorithme plus efficace, expliquez Merge Sort (`O(n log n)`) ou Quick Sort en moyenne (`O(n log n)`).
+
+</details>
+
+<details>
+<summary>88. Comment générer la suite de Fibonacci ?</summary>
+
+#### PHP
+
+L’approche la plus pratique est itérative : commencer avec `0, 1` puis ajouter la somme des deux nombres précédents.
+
+```php
+<?php
+function fibonacciSequence(int $count): array
+{
+    if ($count <= 0) {
+        return [];
+    }
+
+    if ($count === 1) {
+        return [0];
+    }
+
+    $result = [0, 1];
+
+    for ($i = 2; $i < $count; $i++) {
+        $result[] = $result[$i - 1] + $result[$i - 2];
+    }
+
+    return $result;
+}
+```
+
+Complexité :
+
+- Temps : `O(n)`
+- Espace : `O(n)` pour stocker la suite
+
+Note d’entretien :
+
+- Fibonacci récursif sans mémoïsation est exponentiel et généralement inacceptable pour des réponses sensibles à la performance.
+- Si seule la valeur n-ième est nécessaire, l’espace peut être réduit à `O(1)` en ne stockant que les deux valeurs précédentes.
+
+</details>
+
+<details>
+<summary>89. Comment trouver l’élément le plus fréquent ?</summary>
+
+#### PHP
+
+Utiliser une table de fréquence (hash map) : compter les occurrences de chaque valeur, puis retourner la clé avec le compteur maximal.
+
+```php
+<?php
+function mostFrequentElement(array $items): mixed
+{
+    if ($items === []) {
+        return null;
+    }
+
+    $freq = [];
+    $bestKey = null;
+    $bestCount = 0;
+
+    foreach ($items as $item) {
+        $key = is_scalar($item) || $item === null
+            ? (string) $item . ':' . gettype($item)
+            : serialize($item);
+
+        if (!isset($freq[$key])) {
+            $freq[$key] = ['value' => $item, 'count' => 0];
+        }
+
+        $freq[$key]['count']++;
+
+        if ($freq[$key]['count'] > $bestCount) {
+            $bestCount = $freq[$key]['count'];
+            $bestKey = $key;
+        }
+    }
+
+    return $bestKey !== null ? $freq[$bestKey]['value'] : null;
+}
+```
+
+Complexité :
+
+- Temps : `O(n)`
+- Espace : `O(k)`, où `k` est le nombre d’éléments distincts
+
+Comportement en cas d’égalité : cette implémentation retourne le premier élément qui atteint la fréquence la plus élevée.
+
+</details>
+
+<details>
+<summary>90. Comment concevoir un système PHP à forte charge ?</summary>
+
+#### PHP
+
+Pour les systèmes PHP à forte charge, le principe central est de rendre l’application stateless, de sortir le travail lourd du chemin de requête et de scaler horizontalement derrière une infrastructure fiable.
+
+1. **Base d’architecture**
+
+- Instances d’application PHP stateless derrière un load balancer.
+- Nginx/Envoy + PHP-FPM (ou RoadRunner/Swoole quand c’est justifié).
+- Couches séparées pour data, cache, queue et object storage.
+
+2. **Stratégie de données**
+
+- DB primaire + read replicas ; séparation des chemins read/write.
+- Indexation correcte, optimisation des requêtes et monitoring des requêtes lentes.
+- Partitioning/sharding seulement quand le scaling mono-nœud est épuisé.
+
+3. **Couches de cache**
+
+- CDN/edge cache pour réponses statiques et dynamiques cacheables.
+- Redis/Memcached pour les données applicatives et résultats de requêtes chaudes.
+- Politique claire d’invalidation de cache (TTL + invalidation événementielle).
+
+4. **Traitement asynchrone**
+
+- Déporter les tâches coûteuses vers des queues (emails, rapports, traitement média).
+- Utiliser des workers idempotents avec retries et dead-letter queues.
+- Garder les requêtes HTTP courtes et prévisibles.
+
+5. **Fiabilité et résilience**
+
+- Timeouts, circuit breakers, bulkheads pour les dépendances externes.
+- Graceful degradation quand des services non critiques échouent.
+- Health checks, redémarrages automatiques et rolling deployments.
+
+6. **Observabilité**
+
+- Logs centralisés avec correlation IDs.
+- Métriques : p95/p99 latency, error rate, queue lag, saturation DB/cache.
+- Tracing pour les chemins de requête multi-services.
+
+7. **Pratiques opérationnelles**
+
+- Capacity planning et load testing avant les pics de trafic.
+- Blue-green/canary releases pour réduire le risque.
+- Security hardening et rate limiting au niveau edge et applicatif.
+
+Un design PHP scalable est surtout une discipline d’infrastructure et d’architecture : app tier stateless, accès données efficace, cache agressif et exécution asynchrone en arrière-plan.
+
+</details>
+
+<details>
+<summary>91. Comment scaler PHP horizontalement ?</summary>
+
+#### PHP
+
+Le scaling horizontal en PHP signifie ajouter davantage de nœuds applicatifs identiques et garantir que toute requête peut être servie par n’importe quel nœud sans dépendre d’un état local.
+
+1. **Rendre la couche applicative stateless**
+
+- Stocker les sessions dans Redis/DB, pas sur disque local.
+- Déplacer les fichiers uploadés vers un stockage partagé/object storage (ex. compatible S3).
+- Garder les caches locaux de nœud comme optionnels, pas comme source de vérité.
+
+2. **Placer les nœuds derrière un load balancer**
+
+- Utiliser un load balancer L4/L7 (Nginx, HAProxy, cloud LB).
+- Activer les health checks et la suppression automatique des nœuds non sains.
+- Les sticky sessions sont un contournement temporaire ; préférer un design réellement stateless.
+
+3. **Scaler les dépendances orientées lecture**
+
+- Ajouter des read replicas DB et router correctement le trafic de lecture.
+- Ajouter un cache distribué (Redis/Memcached) pour décharger la DB primaire.
+- Utiliser un CDN pour assets statiques et réponses cacheables.
+
+4. **Contrôler les workloads en arrière-plan**
+
+- Utiliser des workers basés sur queue pour les jobs lourds.
+- Scaler les workers indépendamment des nœuds HTTP applicatifs.
+- Rendre les jobs idempotents et sûrs en retry.
+
+5. **Standardiser le runtime avec conteneurs/images**
+
+- Images immuables pour des déploiements cohérents.
+- Politiques d’autoscaling basées sur signaux CPU, mémoire et latence.
+- Gestion centralisée de la config/des secrets.
+
+6. **Observabilité et signaux de scaling**
+
+- Suivre p95/p99 latency, saturation, error rate, queue lag.
+- Surveiller la pression du pool de connexions DB et le cache hit ratio.
+- Utiliser ces métriques pour déclencher autoscaling et capacity planning.
+
+En pratique, le scaling horizontal PHP est simple lorsque l’état est externalisé et que l’infrastructure gère la distribution, la santé et l’élasticité.
+
+</details>
+
+<details>
+<summary>92. Comment gérer des millions d’utilisateurs ?</summary>
+
+#### PHP
+
+Gérer des millions d’utilisateurs est une tâche de conception système, pas une simple astuce PHP. La solution repose sur un scaling en couches au niveau edge, applicatif, data et opérations.
+
+1. **Distribution du trafic et edge**
+
+- CDN global pour assets statiques et réponses API cacheables.
+- Load balancers avec nœuds PHP stateless autoscalés.
+- Rate limiting et protection bot au niveau edge.
+
+2. **Architecture applicative**
+
+- Découper les goulots du monolithe en services bornés quand nécessaire.
+- Garder le chemin de requête synchrone minimal ; déplacer les tâches lourdes vers des queues.
+- Utiliser des clés d’idempotence pour les opérations d’écriture critiques.
+
+3. **Couche data à l’échelle**
+
+- DB primaire pour les écritures, multiples read replicas pour le trafic de lecture.
+- Indexation agressive et tuning des requêtes ; éviter les anti-patterns ORM.
+- Partitioning/sharding pour très grands datasets et tenants chauds.
+
+4. **Stratégie de cache**
+
+- Cache multi-couche : CDN -> Redis/Memcached -> DB.
+- Cacher objets chauds, vues calculées et requêtes coûteuses.
+- Règles d’invalidation fortes pour éviter les données critiques obsolètes.
+
+5. **Traitement asynchrone et orienté événements**
+
+- Queue workers pour emails, notifications, médias, pipelines analytics.
+- Retry avec backoff, dead-letter queues et handlers idempotents.
+- Streamer les événements pour les consommateurs aval au lieu de bloquer les requêtes.
+
+6. **Fiabilité et résilience**
+
+- Graceful degradation pour les fonctionnalités non essentielles sous pression.
+- Budgets de timeout et circuit breakers pour les dépendances.
+- Déploiement multi-AZ et procédures de failover testées.
+
+7. **Observabilité et discipline de capacité**
+
+- SLOs pour latence/erreur ; suivre p95/p99 et saturation.
+- Load/stress testing continu avant les lancements majeurs.
+- Prévision de capacité à partir des patterns d’usage réels.
+
+À l’échelle des « millions », le succès vient d’une architecture prévisible, d’une croissance de données maîtrisée et de pratiques opérationnelles solides, plus que d’optimisations au niveau du langage.
+
+</details>
+
+<details>
+<summary>93. Comment concevoir une stratégie de cache ?</summary>
+
+#### PHP
+
+Une bonne stratégie de cache part des patterns d’accès et des exigences de cohérence, pas du choix technologique seul.
+
+1. **Définir quoi mettre en cache**
+
+- Résultats de requêtes DB coûteuses.
+- Réponses API agrégées/calculées.
+- Contexte de session et d’autorisation (quand c’est sûr).
+- Données statiques/de config/de référence à faible fréquence de changement.
+
+2. **Utiliser un cache multi-couche**
+
+- Cache edge/CDN pour assets statiques et réponses HTTP cacheables.
+- Cache applicatif (Redis/Memcached) pour objets chauds et résultats de requêtes.
+- Optimisations in-process/OPcache pour le code et la config immuable.
+
+3. **Choisir les bons patterns de cache**
+
+- Cache-aside pour données orientées lecture (le plus courant).
+- Write-through/write-behind pour certains cas cohérence/performance.
+- Read-through si le fournisseur de cache supporte le chargement transparent.
+
+4. **Concevoir clés et TTLs avec soin**
+
+- Clés namespacées : `entity:{id}:v{version}`.
+- TTL différents selon la volatilité des données et la criticité métier.
+- Ajouter du jitter au TTL pour réduire le thundering herd.
+
+5. **Gérer l’invalidation explicitement**
+
+- Invalidation orientée événements après écritures.
+- Clés versionnées pour une invalidation logique facile.
+- Invalidation par tags quand supportée.
+
+6. **Se protéger des pannes de cache**
+
+- Chemin de fallback si le cache est indisponible (dégradé mais fonctionnel).
+- Coalescence/verrouillage des requêtes pour éviter le stampede.
+- Warm-up des clés critiques après déploiement/redémarrage.
+
+7. **Mesurer et ajuster en continu**
+
+- Surveiller hit ratio, latence, taux d’éviction, pression mémoire.
+- Suivre les incidents de stale-read et le coût des cache misses.
+- Optimiser à partir des traces réelles de production.
+
+Une stratégie de cache solide est un équilibre : maximiser hit rate et gains de latence tout en préservant la correction et un comportement d’invalidation prévisible.
+
+</details>
+
+<details>
+<summary>94. En interne, en quoi les frameworks PHP modernes (Laravel, Symfony) diffèrent-ils ?</summary>
+
+#### PHP
+
+Laravel et Symfony partagent beaucoup de fondations (cycle de vie HTTP, DI, concepts middleware/événements), mais diffèrent par la philosophie d’architecture, les defaults et le modèle d’extension.
+
+1. **Philosophie cœur**
+
+- Symfony : component-first, configuration explicite, haute composabilité.
+- Laravel : expérience développeur intégrée, defaults orientés convention, livraison plus rapide out of the box.
+
+2. **Injection de dépendances et conteneur**
+
+- Symfony possède un conteneur DI compilé avec validation forte au compile-time et optimisation.
+- Laravel utilise un conteneur de services très dynamique avec résolution runtime et patterns d’auto-wiring orientés ergonomie développeur.
+
+3. **Modèle de configuration**
+
+- Symfony : centré configuration (`yaml/xml/php`), bundles spécifiques à l’environnement, wiring explicite.
+- Laravel : convention + service providers + facades ; nombreuses fonctionnalités activées avec configuration minimale.
+
+4. **Internes du pipeline HTTP**
+
+- Le flux de requête Symfony est centré sur `HttpKernel` et des listeners de l’event dispatcher.
+- Le flux Laravel est orienté middleware pipeline avec intégration expressive route/controller.
+
+5. **Defaults ORM/couche data**
+
+- Symfony utilise couramment Doctrine ORM (pattern Data Mapper, comportement unit-of-work explicite).
+- Laravel embarque Eloquent (pattern Active Record, ergonomie CRUD rapide).
+
+6. **Structure d’écosystème**
+
+- Les composants Symfony sont largement réutilisés en standalone dans l’écosystème PHP.
+- L’écosystème Laravel est fortement intégré (queues, jobs, scheduler, Horizon, patterns de tooling type Nova).
+
+7. **Profil performance et production**
+
+- Les deux peuvent être production-grade à l’échelle.
+- Symfony met souvent l’accent sur la prédictibilité et le contrôle explicite dans les grands systèmes enterprise.
+- Laravel met l’accent sur la vitesse d’implémentation et un workflow développeur cohésif.
+
+En bref : Symfony optimise l’architecture explicite et la composition par composants ; Laravel optimise la productivité intégrée et la livraison rapide de fonctionnalités.
+
+</details>
+
+<details>
+<summary>95. Comment le routing fonctionne-t-il dans les frameworks ?</summary>
+
+#### PHP
+
+Le routing mappe une requête HTTP entrante vers un handler spécifique (controller/action/closure) en utilisant la méthode, le pattern de chemin, l’hôte et des contraintes optionnelles.
+
+1. **Phase de définition des routes**
+
+- Le framework charge la table des routes au démarrage (depuis fichiers/attributs/annotations).
+- Chaque route stocke méthode(s), pattern de chemin, handler, middleware et métadonnées.
+- Beaucoup de frameworks précompilent/mettent en cache les définitions de routes pour une recherche plus rapide.
+
+2. **Phase de matching de la requête**
+
+- Le routeur reçoit le chemin de requête normalisé + la méthode.
+- Il essaie d’abord les routes statiques, puis les routes dynamiques paramétrées.
+- Les contraintes (regex, hôte, schéma, locale) sont validées.
+
+3. **Extraction des paramètres**
+
+- Les segments dynamiques comme `/users/{id}` sont extraits du chemin.
+- Les valeurs sont castées/validées (explicitement ou via les règles de binding du framework).
+- Des valeurs par défaut optionnelles sont appliquées pour les paramètres optionnels manquants.
+
+4. **Middleware et gardes**
+
+- Avant l’exécution du handler, la chaîne de middleware route/groupe/globale s’exécute.
+- Checks typiques : auth, rate limiting, CSRF, permissions, résolution tenant.
+- Le middleware peut court-circuiter et retourner une réponse tôt.
+
+5. **Dispatch du contrôleur**
+
+- Le conteneur résout les dépendances du contrôleur.
+- Les params de route + services injectés sont passés à la méthode d’action.
+- L’action retourne un objet réponse/des données pour sérialisation.
+
+6. **Reverse routing**
+
+- Le framework peut générer des URLs depuis les noms de route + params.
+- Cela évite les URLs hardcodées et améliore la sécurité de refactor.
+
+7. **Considérations performance**
+
+- Cache/précompilation des routes en production.
+- Préférer des routes spécifiques/statiques à des patterns wildcard trop larges.
+- Garder la chaîne middleware minimale pour les endpoints chauds.
+
+En interne, le routing est essentiellement un pipeline indexé de pattern-matching et de dispatch enveloppé par middleware et injection de dépendances.
+
+</details>
+
+<details>
+<summary>96. Comment le pipeline middleware fonctionne-t-il en interne ?</summary>
+
+#### PHP
+
+Le pipeline middleware suit un modèle chain-of-responsibility : chaque middleware reçoit la requête et un callable "next", puis passe la main ou retourne immédiatement une réponse.
+
+1. **Construction du pipeline**
+
+- Le framework collecte les middlewares globaux, de groupe et spécifiques à la route.
+- L’ordre des middlewares est résolu (des règles de priorité peuvent s’appliquer).
+- Un handler final (controller/action) est défini comme dernière étape.
+
+2. **Modèle d’exécution**
+
+- La signature conceptuelle est : `handle(Request $request, Closure $next): Response`.
+- Le middleware peut faire du pré-traitement, puis appeler `$next($request)`.
+- Après le retour de `next`, le middleware peut faire du post-traitement sur la réponse.
+
+3. **Comportement de court-circuit**
+
+- Un middleware peut retourner une réponse sans appeler `$next`.
+- Cas typiques : échec auth, échec CSRF, dépassement rate-limit, mode maintenance.
+- Cela empêche l’exécution des middlewares/controllers en aval.
+
+4. **Pile d’appels imbriquée**
+
+- La chaîne est souvent construite en enveloppant des closures de la dernière vers la première.
+- L’exécution "descend" sur le chemin requête puis "remonte" sur le chemin réponse.
+- Cela permet des préoccupations transverses comme logging, timing, injection d’en-têtes.
+
+5. **Gestion des erreurs et exceptions**
+
+- Un middleware/handler d’exception peut capturer et normaliser les erreurs.
+- Certains frameworks placent la gestion d’erreur hors de la pile middleware, dans une logique kernel de haut niveau.
+- Un mapping d’erreurs cohérent garde les réponses API prévisibles.
+
+6. **Responsabilités middleware courantes**
+
+- Checks d’authentification/autorisation.
+- Validation/sanitization de la requête.
+- Rate limiting et contrôles anti-abus.
+- Tracing, logging, métriques, correlation IDs.
+- En-têtes CORS/sécurité et transformation de réponse.
+
+7. **Considérations performance**
+
+- Garder la chaîne minimale sur les routes chaudes.
+- Placer tôt les checks peu coûteux qui rejettent rapidement.
+- Éviter les I/O synchrones lourds dans les middlewares génériques.
+
+En interne, le middleware est simplement une composition ordonnée de callables qui centralise les préoccupations transverses autour du flux requête/réponse.
+
+</details>
+
+<details>
+<summary>97. Comment la résolution de dépendances fonctionne-t-elle sous le capot ?</summary>
+
+#### PHP
+
+La résolution de dépendances dans les frameworks PHP modernes est assurée par un conteneur DI qui construit les objets à partir des bindings et des métadonnées de constructeur, généralement via réflexion et définitions mises en cache.
+
+1. **Bindings du conteneur**
+
+- Les interfaces/abstractions sont mappées vers des implémentations concrètes.
+- Les bindings peuvent être singleton, scoped ou transient.
+- Des factories/closures peuvent définir une logique de construction personnalisée.
+
+2. **Requête de résolution**
+
+- Le framework demande au conteneur un type (controller, service, middleware, etc.).
+- Le conteneur vérifie si une instance existe déjà (lifetime singleton/scoped).
+- Sinon, il commence à construire le graphe d’objets.
+
+3. **Introspection du constructeur**
+
+- Le conteneur inspecte les paramètres du constructeur (réflexion ou métadonnées compilées).
+- Pour les paramètres typés classe, il résout récursivement les dépendances.
+- Pour les scalaires/valeurs de config, il utilise paramètres explicites, bindings env/config ou valeurs par défaut.
+
+4. **Construction récursive du graphe d’objets**
+
+- Les dépendances sont résolues en profondeur (depth-first).
+- La détection de dépendances circulaires empêche la récursion infinie.
+- Les dépendances optionnelles peuvent être nullable/defaulted si non bindées.
+
+5. **Cycle de vie et cache**
+
+- Les singletons sont mis en cache après la première création.
+- Les instances scoped sont mises en cache par scope de requête/job.
+- Certains conteneurs compilent les métadonnées pour une résolution production plus rapide.
+
+6. **Injection dans méthodes/actions**
+
+- Au-delà des constructeurs, les frameworks peuvent injecter des dépendances dans les actions de contrôleur, handlers de commandes et méthodes middleware.
+- Les params de route et les services du conteneur sont fusionnés au dispatch.
+
+7. **Modes d’échec**
+
+- Interface/abstraction non bindée.
+- Chaîne de dépendances ambiguë ou non instanciable.
+- Paramètres scalaires de constructeur sans defaults/bindings.
+- Dépendances circulaires entre services.
+
+Sous le capot, la résolution DI est une construction déterministe de graphe avec règles de cycle de vie, réflexion/métadonnées et cache pour la performance.
+
+</details>
+
+<details>
+<summary>98. Quelles sont les bonnes pratiques du développement PHP moderne en 2026 ?</summary>
+
+#### PHP
+
+Les bonnes pratiques PHP modernes en 2026 se concentrent sur une discipline d’ingénierie stricte : typage fort, gates qualité automatisées, defaults sécurisés et systèmes de production observables.
+
+1. **Utiliser intentionnellement les fonctionnalités de langage actuelles**
+
+- `declare(strict_types=1);` dans le code applicatif.
+- Propriétés typées, types de retour, enums, patterns readonly/value-object.
+- Préférer des contrats explicites à la magie dynamique quand possible.
+
+2. **Architecture et organisation du code**
+
+- Frontières modulaires (domaine/application/infrastructure ou équivalent).
+- Séparation claire de la logique métier et du glue code framework.
+- Inversion de dépendances avec interfaces pour la testabilité.
+
+3. **Automatisation qualité**
+
+- CI avec analyse statique (PHPStan/Psalm) à haute sévérité.
+- Style de code cohérent via PHP-CS-Fixer/Pint.
+- Tests unitaires + intégration + contrat avec fixtures réalistes.
+
+4. **Performance et efficacité runtime**
+
+- PHP 8.3/8.4+ avec OPcache et réglages FPM/process manager ajustés.
+- Profiler d’abord (Blackfire/XHProf/APM), puis optimiser les hotspots.
+- Utiliser cache/queues pour garder le chemin de requête synchrone léger.
+
+5. **Sécurité par défaut**
+
+- Prepared statements, échappement contextuel de sortie, protection CSRF.
+- Gestion des secrets hors repo ; rotation des clés et moindre privilège.
+- Scan de vulnérabilités des dépendances en CI.
+
+6. **Maturité opérationnelle**
+
+- Logs structurés, métriques, tracing, correlation IDs.
+- Monitoring piloté par SLO avec contrôle de la fatigue d’alertes.
+- Releases sûres : canary/blue-green et procédures de rollback.
+
+7. **Hygiène dépendances et écosystème**
+
+- Garder les dépendances Composer à jour avec cadence de montée de version contrôlée.
+- Épingler et auditer les packages critiques.
+- Éviter le couplage framework inutile dans le code de domaine cœur.
+
+8. **Conventions d’équipe**
+
+- ADRs pour les décisions majeures et standards de code review clairs.
+- Règles de backward compatibility pour APIs publiques/internes.
+- Documentation proche du code pour onboarding et réponse aux incidents.
+
+Les équipes PHP les plus solides en 2026 traitent la santé de la codebase comme un produit : typée, testée, observable et continuellement améliorée.
+
+</details>
+
+<details>
+<summary>99. Quels outils sont essentiels pour un développeur PHP moderne ?</summary>
+
+#### PHP
+
+Une boîte à outils PHP moderne efficace couvre le code, la qualité, le debugging, la livraison et les opérations.
+
+1. **Langage cœur et gestion de paquets**
+
+- Runtime PHP 8.3/8.4+.
+- Composer pour dépendances et autoloading.
+- Outillage d’environnement local : Docker/DDEV/Lando ou setup natif reproductible.
+
+2. **Qualité de code et analyse statique**
+
+- PHPStan ou Psalm pour l’analyse statique.
+- PHP-CS-Fixer ou Pint pour les standards de code.
+- PHP_CodeSniffer quand des standards personnalisés sont requis.
+
+3. **Stack de tests**
+
+- PHPUnit ou Pest pour tests unitaires/d’intégration.
+- Bibliothèques de mocking/test doubles selon besoin.
+- Reporting de couverture intégré à la CI.
+
+4. **Debugging et profiling**
+
+- Xdebug pour le step debugging.
+- Blackfire/Tideways/XHProf/APM profiler pour les goulots de performance.
+- Outils de logging structuré et visualiseur centralisé de logs.
+
+5. **Outillage framework et DX**
+
+- Laravel Artisan ou Symfony Console tooling.
+- Utilitaires debug/profiler spécifiques au framework.
+- Outils API : Postman/Insomnia + validation OpenAPI.
+
+6. **Outils data et infrastructure**
+
+- Outils CLI Redis et DB (`redis-cli`, `psql`, `mysql`) pour diagnostics.
+- Dashboards de monitoring queue/worker.
+- Outillage de migration et gestion de schéma.
+
+7. **CI/CD et automatisation**
+
+- GitHub Actions/GitLab CI ou équivalent.
+- Gates automatisées lint, analyse statique, tests, scan sécurité.
+- Automatisation du déploiement avec capacité de rollback.
+
+8. **Sécurité et hygiène des dépendances**
+
+- `composer audit` et/ou scanners SCA.
+- Secret scanning et hooks pre-commit.
+- SAST/DAST selon le profil de risque.
+
+9. **Observabilité et opérations**
+
+- Stack métriques, tracing et alerting (Prometheus/Grafana/APM).
+- Error tracking (Sentry/Bugsnag).
+- Corrélation de logs avec request IDs.
+
+L’ensemble essentiel est celui qui impose des boucles de feedback rapides : checks de qualité du code, tests fiables, livraison sûre et visibilité production.
+
+</details>
+
+<details>
+<summary>100. Comment garder une codebase PHP maintenable sur le long terme ?</summary>
+
+#### PHP
+
+La maintenabilité long terme s’obtient en combinant standards techniques, discipline architecturale et feedback opérationnel continu.
+
+1. **Garder l’architecture explicite**
+
+- Imposer des frontières de modules claires et une ownership explicite.
+- Séparer la logique de domaine des détails framework/infrastructure.
+- Minimiser le couplage caché et l’état global.
+
+2. **Prioriser la lisibilité sur l’ingéniosité**
+
+- Classes/fonctions petites et ciblées avec nommage clair.
+- Conventions cohérentes dans toute la codebase.
+- Préférer un comportement explicite aux abstractions magiques.
+
+3. **Prendre la sûreté de type au sérieux**
+
+- `strict_types=1` quand c’est faisable.
+- Typage fort pour params/retours/propriétés.
+- Analyse statique (PHPStan/Psalm) comme gate CI obligatoire.
+
+4. **Construire un portefeuille de tests résilient**
+
+- Tests unitaires rapides pour la logique cœur.
+- Tests d’intégration pour frontières DB/externes.
+- Tests de contrat pour APIs/événements partagés avec d’autres services.
+
+5. **Maîtriser dépendances et montées de version**
+
+- Cadence régulière de mise à jour des dépendances au lieu de big-bang rares.
+- Suivi des changelogs et dépréciations framework/runtime.
+- Supprimer proactivement les packages inutilisés et abstractions mortes.
+
+6. **Concevoir pour un changement sûr**
+
+- Règles de backward compatibility pour APIs publiques.
+- Feature flags pour les rollouts risqués.
+- Migrations et changements de données avec plans de rollback/réparation.
+
+7. **Institutionnaliser le process qualité de code**
+
+- Checklist de code review (correction, sécurité, performance, lisibilité).
+- Formatage/linting automatisés pour réduire le bruit en review.
+- ADRs pour les décisions majeures afin de préserver le contexte dans le temps.
+
+8. **Boucle de feedback opérationnelle**
+
+- Observabilité production : logs, métriques, tracing, error tracking.
+- Revues post-incident alimentant des améliorations concrètes code/process.
+- Priorisation basée sur SLO pour garder la fiabilité visible.
+
+9. **Protéger la continuité d’équipe**
+
+- Documentation à jour pour setup, architecture et runbooks.
+- Guides d’onboarding et standards d’ingénierie partagés.
+- Réduire le risque de « single expert » via partage de connaissances et rotation.
+
+Une codebase PHP maintenable n’est pas statique ; elle est continuellement cultivée via standards, automatisation et simplification délibérée.
+
+</details>
