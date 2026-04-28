@@ -2237,3 +2237,3059 @@ try {
 Transakcje są kluczowym mechanizmem niezawodności dla finansów, stanów magazynowych i innych workflow krytycznych dla integralności w systemach PHP.
 
 </details>
+
+<details>
+<summary>42. Czym jest ORM (Eloquent / Doctrine) i jakie ma kompromisy?</summary>
+
+#### PHP
+
+ORM (Object-Relational Mapping) to technika mapowania tabel/wierszy bazy danych na obiekty PHP, dzięki czemu w większości kodu aplikacji pracujesz na encjach domenowych zamiast na surowym SQL.
+
+1. **Co daje ORM**
+
+- Klasy encji/modeli mapowane do schematów DB.
+- API/buildery zapytań zamiast ręcznego SQL dla typowych operacji.
+- Obsługa relacji (`hasMany`, `belongsTo` itd.).
+- Unit-of-work/śledzenie zmian (szczególnie w Doctrine).
+- Migracje i narzędzia ekosystemowe w wielu frameworkach.
+
+2. **Popularne ORM-y w PHP**
+
+- **Eloquent (Laravel)**:
+  styl Active Record, szybka produktywność, ekspresyjna składnia.
+- **Doctrine ORM**:
+  styl Data Mapper, bogate modelowanie domeny, silniejsze rozdzielenie odpowiedzialności.
+
+3. **Korzyści**
+
+- Szybszy development dla funkcji opartych na CRUD.
+- Czystszy i bardziej czytelny kod persystencji w typowych scenariuszach.
+- Łatwiejsze przechodzenie po relacjach i workflow zorientowany na modele.
+- Scaffoldingi oparte na konwencjach i integracje ekosystemowe.
+
+4. **Kompromisy / wady**
+
+- Narzut abstrakcji i potencjalny koszt wydajnościowy.
+- Ukryte/niejawne zapytania (problem N+1).
+- Złożone SQL/raportowanie często nadal wymaga ręcznego SQL.
+- Wzorce specyficzne dla ORM mogą zwiększać próg wejścia i lock-in.
+
+5. **Kiedy ORM działa najlepiej**
+
+- Aplikacje biznesowe z częstymi operacjami na cyklu życia encji.
+- Zespoły, które cenią produktywność i utrzymywalny kod model-centric.
+
+6. **Kiedy preferować raw SQL/query buildery**
+
+- Ścieżki krytyczne wydajnościowo.
+- Złożone zapytania analityczne/raportowe.
+- Funkcje specyficzne dla danego silnika DB i precyzyjna kontrola SQL.
+
+7. **Praktyczna strategia**
+
+- Domyślnie używaj ORM dla typowych operacji domenowych.
+- Profiluj i optymalizuj wąskie gardła.
+- Łącz ORM z zoptymalizowanym SQL tam, gdzie to potrzebne (podejście hybrydowe).
+- Jawnie kontroluj eager/lazy loading, aby uniknąć eksplozji liczby zapytań.
+
+ORM to mnożnik produktywności w PHP, ale dobre inżynierowanie wymaga zrozumienia, gdzie abstrakcja pomaga, a gdzie lepsza jest niższiopoziomowa kontrola SQL.
+
+</details>
+
+<details>
+<summary>43. Czym jest connection pooling i dlaczego jest ważny?</summary>
+
+#### PHP
+
+Connection pooling to technika, w której połączenia z bazą danych są ponownie wykorzystywane z zarządzanej puli zamiast być tworzone i zamykane przy każdej operacji.
+
+1. **Dlaczego połączenia są kosztowne**
+
+- Otwieranie połączeń DB obejmuje handshake sieciowy, uwierzytelnienie i alokację zasobów serwera.
+- Częste ponowne łączenie zwiększa opóźnienia i obciążenie CPU po stronie aplikacji i DB.
+
+2. **Co robi pooling**
+
+- Utrzymuje zestaw otwartych połączeń wielokrotnego użytku.
+- Przydziela istniejące połączenie do nadchodzącej pracy.
+- Po użyciu zwraca je do puli do ponownego użycia przez kolejne requesty/joby.
+
+3. **Dlaczego to ważne**
+
+- Zmniejsza opóźnienia requestów.
+- Poprawia throughput pod obciążeniem.
+- Ogranicza churn połączeń DB i narzut.
+- Stabilizuje zachowanie systemów o wysokiej współbieżności.
+
+4. **Niuans kontekstu PHP**
+
+- W klasycznym modelu requestowym PHP-FPM każdy proces workera ma izolowany cykl życia, więc pooling jest mniej oczywisty niż w runtime’ach długodziałających.
+- Typowe praktyczne podejścia:
+  połączenia trwałe (`PDO::ATTR_PERSISTENT` z ostrożnością),
+  zewnętrzne poolery/proxy (na przykład PgBouncer dla PostgreSQL),
+  workery długodziałające (RoadRunner/Swoole/consumery kolejek), gdzie reuse jest bardziej bezpośredni.
+
+5. **Kompromisy / ryzyka**
+
+- Należy wykrywać i recyklingować nieaktualne/uszkodzone połączenia.
+- Złe rozmiarowanie puli może powodować contention albo przeciążenie DB.
+- Połączenia trwałe mogą trzymać zasoby serwera dłużej, niż oczekiwano.
+
+6. **Najlepsze praktyki**
+
+- Ustawiaj rozsądne limity puli/połączeń zgodne z pojemnością DB.
+- Używaj health checków i timeoutów połączeń.
+- Monitoruj liczbę połączeń, czas oczekiwania i error rates.
+- Utrzymuj zapytania wydajne; pooling nie naprawi wolnego SQL.
+
+Connection pooling to kluczowa technika skalowania dla systemów PHP intensywnie korzystających z bazy danych, szczególnie pod stałym ruchem współbieżnym.
+
+</details>
+
+<details>
+<summary>44. Jak strukturyzować skalowalną aplikację PHP?</summary>
+
+#### PHP
+
+Skalowalna aplikacja PHP jest budowana wokół jasnych granic, przewidywalnej architektury i gotowości operacyjnej na wzrost ruchu, zespołu oraz złożoności funkcji.
+
+1. **Używaj granic warstw/modułów**
+
+- Dziel według odpowiedzialności i domen biznesowych, nie tylko według folderów technicznych.
+- Typowe warstwy:
+  `Domain`, `Application/UseCases`, `Infrastructure`, `Interface/HTTP`.
+
+2. **Utrzymuj logikę biznesową niezależną od frameworka**
+
+- Umieszczaj kluczowe reguły w warstwie domeny/przypadków użycia.
+- Utrzymuj kontrolery cienkie.
+- Zależyj od interfejsów; adaptery DB/frameworka trzymaj w warstwie infrastruktury.
+
+3. **Projektuj pod bezstanowe skalowanie horyzontalne**
+
+- Unikaj lokalnego mutowalnego stanu w instancjach aplikacji.
+- Przechowuj stan współdzielony w systemach zewnętrznych:
+  DB, Redis, object storage, kolejki.
+- Przygotuj sesje/cache do wdrożeń wielowęzłowych.
+
+4. **Strategia danych i persystencji**
+
+- Używaj repozytoriów/serwisów jako granic persystencji.
+- Wcześnie stosuj indeksowanie i optymalizację zapytań.
+- Wprowadzaj cache (aplikacyjny/zapytań/HTTP), gdy jest to uzasadnione.
+- Read/write separation i partycjonowanie stosuj tylko, gdy to potrzebne.
+
+5. **Asynchroniczność i przetwarzanie w tle**
+
+- Przenieś niekrytyczne/wolne zadania do kolejek (maile, eksporty, powiadomienia, webhooki).
+- Utrzymuj ścieżkę requestu szybką i deterministyczną.
+
+6. **Skalowalność operacyjna**
+
+- Konteneryzuj workloady (Docker/K8s/platformy zarządzane).
+- Używaj health checków, ustrukturyzowanego logowania, metryk i tracingu.
+- Dodaj rate limiting, timeouty, retry, circuit breakery.
+- Buduj CI/CD z bezpieczną strategią rolloutu i rollbacku.
+
+7. **Skalowalność codebase’u dla zespołów**
+
+- Egzekwuj standardy kodowania i analizę statyczną.
+- Utrzymuj modularne granice pakietów.
+- Używaj testów integracyjnych i kontraktowych wokół ścieżek krytycznych.
+- Dokumentuj decyzje architektoniczne (ADR) i kontrakty serwisów.
+
+8. **Praktyczna ścieżka ewolucji**
+
+- Zaczynaj od modularnego monolitu i silnych granic.
+- Wydzielaj serwisy tylko wtedy, gdy jasno uzasadniają to ograniczenia skali/zespołu.
+
+Skalowalność w PHP to przede wszystkim dyscyplina architektury + operacji, a nie wybór jednego frameworka.
+
+</details>
+
+<details>
+<summary>45. Jak zarządzać konfiguracją (zmienne środowiskowe)?</summary>
+
+#### PHP
+
+W nowoczesnych aplikacjach PHP konfiguracja powinna być wyniesiona poza kod i dostarczana przez zmienne środowiskowe, zgodnie z zasadami 12-factor.
+
+1. **Główna zasada**
+
+- Trzymaj konfigurację poza kodem źródłowym.
+- Traktuj środowisko jako źródło ustawień specyficznych dla wdrożenia:
+  dane logowania DB, URL-e API, hosty cache, feature flagi itd.
+
+2. **Typowy setup**
+
+- Development: plik `.env` (ładowany przez framework/bootstrap).
+- Produkcja: realne zmienne środowiskowe z platformy/orchestratora (nie `.env` w repo).
+
+3. **Jak konsumować wartości**
+
+- Odczytuj env raz w bootstrapie konfiguracji.
+- Mapuj do typowanej struktury/obiektu konfiguracji.
+- Wstrzykuj konfigurację do serwisów przez DI.
+
+4. **Dobre praktyki**
+
+- Rozdzielaj konfigurację per środowisko (`dev`, `staging`, `prod`) przez wartości env.
+- Domyślne wartości dawaj tylko dla niesensytywnych ustawień lokalnego developmentu.
+- Waliduj wymaganą konfigurację przy starcie i fail-fast, jeśli brakuje/ma błędną wartość.
+- Utrzymuj klucze konfiguracji spójne i udokumentowane.
+
+5. **Czego nie robić**
+
+- Nie hardcoduj danych uwierzytelniających w kodzie.
+- Nie commituj sekretów produkcyjnych do repozytorium.
+- Nie wywołuj `getenv()` losowo w logice domenowej.
+- Nie mieszaj logiki biznesowej z logiką ładowania konfiguracji.
+
+6. **Praktyczny wzorzec**
+
+Używaj centralnych plików konfiguracyjnych, które pobierają wartości z env, na przykład:
+- `config/database.php`
+- `config/cache.php`
+- `config/app.php`
+
+Następnie wstrzykuj rozwiązaną konfigurację do zależnych serwisów.
+
+7. **Uwaga bezpieczeństwa**
+
+Zmienne środowiskowe są lepsze niż hardkodowane sekrety, ale nadal są wrażliwe:
+ograniczaj dostęp, unikaj logowania pełnych wartości i łącz to z dedykowanymi secret managerami dla krytycznych danych.
+
+Obsługa konfiguracji przez zmienne środowiskowe utrzymuje aplikacje PHP przenośnymi, bezpiecznymi i spójnymi między środowiskami.
+
+</details>
+
+<details>
+<summary>46. Jak zarządzać sekretami (Vault, AWS Secrets Manager)?</summary>
+
+#### PHP
+
+Zarządzanie sekretami to praktyka bezpiecznego przechowywania, rotacji i dostępu do wrażliwych danych (klucze API, hasła DB, tokeny, certyfikaty) poza kodem aplikacji.
+
+1. **Dlaczego potrzebne są dedykowane secret managery**
+
+- Zapobiegają wyciekom sekretów do repozytorium/historii.
+- Centralizują kontrolę dostępu i audyt.
+- Umożliwiają bezpieczną rotację bez redeployu kodu.
+- Ograniczają ryzyko operacyjne względem zwykłych plików `.env`.
+
+2. **Popularne narzędzia**
+
+- **HashiCorp Vault**: dynamiczne sekrety, lease’y, dostęp oparty o polityki, mocne możliwości audytowe.
+- **AWS Secrets Manager**: zarządzane przechowywanie/rotacja sekretów zintegrowane z IAM i usługami AWS.
+- (Często też: cloud-native parameter stores lub rozwiązania oparte o KMS.)
+
+3. **Rekomendowany przepływ sekretów**
+
+1. Tożsamość aplikacji jest ustalana (rola IAM, workload identity, metoda auth Vaulta).
+2. Aplikacja pobiera wymagane sekrety przy starcie (lub on-demand z cache).
+3. Sekrety są trzymane w pamięci tylko tak długo, jak to potrzebne.
+4. Zdarzenia rotacji są obsługiwane bez hardkodowanych wartości.
+
+4. **Najlepsze praktyki**
+
+- Nigdy nie commituj sekretów do gita (także w plikach przykładowych z realnymi wartościami).
+- Stosuj polityki least-privilege per serwis/środowisko.
+- Rotuj sekrety regularnie i po incydentach.
+- Loguj metadane dostępu, nigdy wartości sekretów.
+- Rozdzielaj sekrety per środowisko (`dev/staging/prod`) i zakres serwisu.
+- Gdy to możliwe, używaj krótkowiecznych poświadczeń (dynamiczne dane DB/tokeny).
+
+5. **Wzorzec integracji w PHP**
+
+- Pobieraj sekrety w warstwie bootstrap/infrastructure.
+- Mapuj je do typowanych obiektów konfiguracji.
+- Wstrzykuj konfigurację/sekrety do zależnych serwisów przez DI.
+- Dodaj strategię fallback i retry na wypadek awarii secret managera.
+
+6. **Aspekty operacyjne**
+
+- Cache’uj sekrety z TTL, aby ograniczyć opóźnienia i limity API.
+- Zaplanuj zachowanie bootstrapa, gdy backend sekretów jest chwilowo niedostępny.
+- Testuj procedurę rotacji na stagingu przed rolloutem na produkcję.
+
+Użycie Vault/AWS Secrets Manager zmienia obsługę sekretów z ad-hoc zmiennych środowiskowych w kontrolowany proces bezpieczeństwa odpowiedni dla produkcyjnych systemów PHP.
+
+</details>
+
+<details>
+<summary>47. Czym jest 12-factor app w kontekście PHP?</summary>
+
+#### PHP
+
+12-factor app to zestaw cloud-native zasad inżynierskich do budowy przenośnych, skalowalnych i utrzymywalnych usług. W PHP te zasady pomagają przejść od „aplikacji związanych z serwerem” do nowoczesnych, łatwo wdrażalnych usług.
+
+1. **Codebase**
+
+- Jedna codebase utrzymywana w kontroli wersji.
+- Wiele wdrożeń (`dev/staging/prod`) z tej samej codebase.
+
+2. **Dependencies**
+
+- Deklaruj zależności jawnie w `composer.json`.
+- Unikaj polegania na globalnie zainstalowanych pakietach systemowych.
+
+3. **Config**
+
+- Trzymaj konfigurację w zmiennych środowiskowych, nie w kodzie.
+- Trzymaj sekrety i wartości specyficzne dla środowiska poza repozytorium.
+
+4. **Backing services**
+
+- Traktuj DB, cache, kolejkę, object storage jako podłączone zasoby.
+- Uzyskuj do nich dostęp przez config/URL-e, aby można je było podmieniać per środowisko.
+
+5. **Rozdzielenie build, release, run**
+
+- Buduj artefakt jeden raz.
+- Promuj ten sam artefakt przez kolejne środowiska.
+- Trzymaj konfigurację runtime oddzielnie od builda.
+
+6. **Procesy**
+
+- Uruchamiaj aplikację jako bezstanowe procesy.
+- Trwały stan przechowuj w usługach zewnętrznych (DB/Redis/S3/itd.).
+
+7. **Port binding i współbieżność**
+
+- Wystawiaj usługi przez punkty wejścia HTTP/runtime.
+- Skaluj przez replikację procesów/kontenerów, a nie tylko tuning wertykalny.
+
+8. **Disposability i parity**
+
+- Szybki startup/shutdown dla bezpiecznych deployów i autoskalowania.
+- Utrzymuj środowiska dev/staging/prod możliwie podobne.
+
+9. **Logi i zadania administracyjne**
+
+- Traktuj logi jako strumienie zdarzeń (stdout/agregatory).
+- Uruchamiaj zadania admin/migracje jako jednorazowe procesy używające tej samej codebase.
+
+10. **Praktyczne implikacje specyficzne dla PHP**
+
+- Używaj Composer + konfiguracja env + stan zewnętrzny.
+- Runtime przyjazny kontenerom (PHP-FPM/workery CLI).
+- Workery kolejek dla zadań w tle.
+- Pipeline CI/CD z niemutowalnymi artefaktami.
+
+Zastosowanie zasad 12-factor w PHP poprawia niezawodność wdrożeń, skalowalność operacyjną i długoterminową utrzymywalność.
+
+</details>
+
+<details>
+<summary>48. Czym jest konteneryzacja (Docker) w aplikacjach PHP?</summary>
+
+#### PHP
+
+Konteneryzacja pakuje aplikację PHP wraz z zależnościami runtime do przenośnego obrazu, dzięki czemu działa ona spójnie lokalnie, w CI, na stagingu i na produkcji.
+
+1. **Co Docker daje aplikacjom PHP**
+
+- Powtarzalny runtime (wersja PHP, rozszerzenia, biblioteki systemowe).
+- Zgodność środowiska między maszynami deweloperów a produkcją.
+- Łatwiejsze wdrożenia, rollback i skalowanie.
+- Izolację między usługami (aplikacja, DB, cache, kolejka, worker).
+
+2. **Typowy konteneryzowany stack PHP**
+
+- Kontener PHP-FPM (runtime aplikacji)
+- Kontener Nginx/Apache (serwer web)
+- Oddzielne kontenery dla DB/Redis/workerów kolejek/zadań cron
+
+3. **Podstawowy wzorzec Dockerfile**
+
+```dockerfile
+FROM php:8.4-fpm-alpine
+
+RUN docker-php-ext-install pdo pdo_mysql opcache
+WORKDIR /var/www/html
+
+COPY . .
+RUN php -v
+```
+
+4. **Dlaczego to ważne dla skalowalności**
+
+- Skalowanie horyzontalne staje się prostsze (replikacja kontenerów).
+- Niemutowalne wdrożenia oparte o obrazy redukują drift/mismatch konfiguracji.
+- Naturalnie współpracuje z platformami orkiestracji (Kubernetes, ECS, Nomad).
+
+5. **Najlepsze praktyki**
+
+- Używaj małych obrazów bazowych i buildów wieloetapowych.
+- Przypinaj wersje obrazów/tagów dla powtarzalności.
+- Trzymaj obrazy bezstanowe; dane trwałe przechowuj na zewnątrz.
+- Wstrzykuj config/sekrety przez env/secret managery, nie „wypiekaj” ich w obrazie.
+- Uruchamiaj health checki i wystawiaj ustrukturyzowane logi do stdout/stderr.
+
+6. **Typowe pułapki**
+
+- Uruchamianie wszystkiego w jednym kontenerze (web + DB + kolejka) na produkcji.
+- Zapisywanie trwałych danych aplikacji do filesystemu kontenera.
+- Duże obrazy z niepotrzebnymi narzędziami buildowymi w warstwie runtime.
+
+Konteneryzacja to kluczowa praktyka nowoczesnych operacji PHP, bo standaryzuje zachowanie runtime i poprawia wdrażalność na skali.
+
+</details>
+
+<details>
+<summary>49. Czym jest OPcache i jak poprawia wydajność?</summary>
+
+#### PHP
+
+OPcache to wbudowany cache bytecode PHP, który przechowuje skompilowany bytecode skryptów we współdzielonej pamięci, dzięki czemu PHP nie musi parsować i kompilować tych samych plików przy każdym requestcie.
+
+1. **Jaki problem rozwiązuje OPcache**
+
+- Bez OPcache każdy request wielokrotnie wykonuje:
+  odczyt pliku PHP -> parsowanie -> kompilacja do opcode’ów -> wykonanie.
+- Ta powtarzalna kompilacja zwiększa narzut CPU i opóźnienia.
+
+2. **Jak OPcache poprawia wydajność**
+
+- Skompilowane opcode’y są cache’owane w pamięci i używane ponownie między requestami.
+- Redukuje zużycie CPU i czas requestu.
+- Zwiększa throughput pod obciążeniem.
+- Poprawia czas startu frameworków z wieloma plikami.
+
+3. **Typowy setup produkcyjny**
+
+- Włącz OPcache w runtime PHP (`opcache.enable=1`).
+- Dostrań limity pamięci i liczby plików:
+  `opcache.memory_consumption`, `opcache.max_accelerated_files`.
+- Wyłącz walidację timestampów dla niemutowalnych artefaktów release:
+  `opcache.validate_timestamps=0` (z resetem cache wyzwalanym przy deployu).
+
+4. **Często używane ustawienia**
+
+- `opcache.enable`
+- `opcache.memory_consumption`
+- `opcache.max_accelerated_files`
+- `opcache.interned_strings_buffer`
+- `opcache.validate_timestamps`
+- `opcache.revalidate_freq`
+
+5. **Aspekty wdrożeniowe**
+
+- Gdy kod się zmienia, cache’owany bytecode musi zostać odświeżony.
+- W niemutowalnych/kontenerowych deployach zwykle wystarczy restart workerów PHP.
+- W mutowalnych deployach używaj kontrolowanej strategii unieważniania/restartu.
+
+6. **Najlepsze praktyki**
+
+- Zawsze używaj OPcache na produkcji.
+- Monitoruj cache hit rate, zużycie pamięci i restarty.
+- Dobieraj rozmiar cache do wzrostu codebase’u.
+- Łącz OPcache z cache aplikacyjnym/bazodanowym dla pełnych zysków wydajnościowych.
+
+OPcache to jedna z funkcji o najwyższym wpływie i najniższym koszcie wdrożenia dla wydajności środowisk produkcyjnych PHP.
+
+</details>
+
+<details>
+<summary>50. Czym jest JIT w PHP i kiedy jest użyteczny?</summary>
+
+#### PHP
+
+JIT (Just-In-Time compilation) w PHP to optymalizacja silnika, która kompiluje wybrane opcode’y Zend do natywnego kodu maszynowego w runtime.
+
+1. **Co robi JIT**
+
+- Normalny przepływ PHP: skrypt -> opcode’y -> wykonanie przez interpreter.
+- Z JIT: gorące ścieżki kodu mogą być kompilowane do kodu natywnego i wykonywane szybciej.
+
+2. **Gdzie JIT może pomóc**
+
+- Obciążenia CPU-intensive:
+  ciężka matematyka, pętle, przetwarzanie danych, algorytmy obliczeniowe.
+- Długodziałające workery CLI i wyspecjalizowane zadania obliczeniowe.
+
+3. **Gdzie JIT często daje niewielką korzyść**
+
+- Typowe aplikacje webowe zdominowane przez I/O:
+  zapytania do bazy, wywołania sieciowe, dostęp do cache, renderowanie szablonów.
+- W wielu workloadach CRUD/API OPcache i optymalizacja zapytań mają większe znaczenie niż JIT.
+
+4. **Relacja do OPcache**
+
+- JIT jest zbudowany na infrastrukturze OPcache.
+- OPcache zwykle daje największy bazowy zysk dla większości aplikacji.
+- JIT to dodatkowa warstwa optymalizacji dla kodu CPU-bound.
+
+5. **Praktyczne wskazówki**
+
+- Włącz i porównaj benchmarki before/after na rzeczywistym workloadzie.
+- Nie zakładaj globalnych przyspieszeń dla wszystkich typów requestów.
+- Najpierw priorytetyzuj usuwanie realnych bottlenecków:
+  wolny SQL, zapytania N+1, nadmiarowe wywołania sieciowe, nieefektywny caching.
+
+6. **Reguła kciuka**
+
+- Dla klasycznych backendów webowych: wpływ JIT zwykle jest umiarkowany.
+- Dla obliczeniowo ciężkich workloadów PHP: JIT może dać znaczące usprawnienia.
+
+JIT jest użytecznym narzędziem optymalizacji, ale jego wartość silnie zależy od profilu obciążenia.
+
+</details>
+
+<details>
+<summary>51. Czym jest lazy loading i gdzie jest używany?</summary>
+
+#### PHP
+
+Lazy loading to technika, w której dane lub obiekty są ładowane dopiero wtedy, gdy są faktycznie potrzebne, zamiast ładowania wszystkiego z góry.
+
+1. **Główna idea**
+
+- Opóźnij kosztowną inicjalizację do pierwszego użycia.
+- Zmniejsz początkowe zużycie pamięci i czas startu.
+- Płać koszt tylko za ścieżki, które naprawdę są używane.
+
+2. **Gdzie lazy loading jest używany w PHP**
+
+- Relacje ORM (proxy relacji Doctrine/Eloquent).
+- Inicjalizacja serwisów w kontenerach DI (deferred services).
+- Duże konfiguracje/zasoby ładowane na żądanie.
+- Przetwarzanie strumieni/plików, gdzie fragmenty są ładowane progresywnie.
+
+3. **Typowy przykład ORM**
+
+- Encja `User` jest załadowana.
+- `User->orders` nie jest pobierane od razu.
+- Pierwszy dostęp do zamówień wyzwala zapytanie SQL.
+
+4. **Korzyści**
+
+- Szybsza odpowiedź początkowa w wielu use case’ach.
+- Mniejszy footprint pamięci, gdy nie wszystkie dane są wymagane.
+- Lepsza skalowalność dla złożonych grafów obiektów.
+
+5. **Kompromisy i ryzyka**
+
+- Ukryte zapytania mogą powodować problemy wydajnościowe N+1.
+- Wzorce dostępu stają się mniej jawne.
+- Lazy loading w ciasnych pętlach może eksplodować liczbą round-tripów DB.
+
+6. **Najlepsze praktyki**
+
+- Używaj eager loading, gdy wiesz, że dane powiązane będą potrzebne.
+- Profiluj liczbę zapytań i opóźnienia.
+- Utrzymuj granice lazy loading jawne w warstwie repozytorium/zapytań.
+- Unikaj lazy loadingu wewnątrz pętli serializacji/outputu.
+
+7. **Reguła kciuka**
+
+- Używaj lazy loading dla opcjonalnych lub rzadko używanych zależności/danych.
+- Używaj eager loading dla przewidywalnie i często używanych danych powiązanych.
+
+Lazy loading to silna technika optymalizacji wydajności, ale tylko wtedy, gdy jest połączona z widocznością zachowania zapytań i świadomą strategią ładowania.
+
+</details>
+
+<details>
+<summary>52. Jakie są typowe bottlenecki wydajności w PHP?</summary>
+
+#### PHP
+
+Większość problemów wydajnościowych PHP nie wynika z samego języka, tylko z nieefektywnego I/O, wzorców zapytań i decyzji architektonicznych.
+
+1. **Bottlenecki bazodanowe (najczęstsze)**
+
+- Zapytania N+1 przy użyciu ORM.
+- Brak indeksów lub słabe plany zapytań.
+- Nadmierne pobieranie danych (`SELECT *`, gdy niepotrzebne).
+- Długie transakcje i contention na blokadach.
+
+2. **Sieć i zewnętrzne I/O**
+
+- Wolne API zewnętrzne bez timeoutów/retry.
+- Zbyt wiele synchronicznych wywołań wychodzących w ścieżce requestu.
+- Brak circuit breakerów/fallbacków.
+
+3. **Nieefektywności na poziomie aplikacji**
+
+- Ciężka logika biznesowa wykonywana przy każdym requestcie.
+- Ponowne obliczanie kosztownych wyników zamiast cache’owania.
+- Nadmierna serializacja/deserializacja lub przetwarzanie dużych payloadów.
+
+4. **Narzut autoload/bootstrap**
+
+- Duży bootstrap frameworka dla trywialnych endpointów.
+- Zbyt wiele ładowanych klas/providerów konfiguracji.
+- Błędnie skonfigurowany OPcache.
+
+5. **Narzut filesystemu i logowania**
+
+- Częste zapisy dyskowe w ścieżce requestu.
+- Blokujące/zbyt gadatliwe logowanie bez async processing.
+- Wolne wolumeny storage w kontenerach/VM-ach.
+
+6. **Presja pamięci**
+
+- Duże kolekcje in-memory i nieograniczone tablice.
+- Nieefektywne pętle na ogromnych zbiorach danych.
+- Długodziałające workery nieintencjonalnie trzymające referencje.
+
+7. **Brak/nieefektywny caching**
+
+- Brak cache dla danych read-heavy.
+- Zła strategia unieważniania cache powodująca stale/frequent misses.
+- Cache stampede pod obciążeniem.
+
+8. **Jak podejść systemowo**
+
+- Profiluj przed optymalizacją.
+- Najpierw priorytetyzuj najgorętsze endpointy/zapytania.
+- Dodaj optymalizację zapytań + caching + async offloading.
+- Monitoruj p95/p99 latency, czas DB, cache hit ratio i error rates.
+
+W systemach PHP najszybsze zyski najczęściej dają tuning zapytań, strategia cache i redukcja synchronicznego I/O w ścieżce requestu.
+
+</details>
+
+<details>
+<summary>53. Jak profilować aplikację PHP?</summary>
+
+#### PHP
+
+Profilowanie to proces mierzenia, gdzie faktycznie zużywany jest czas wykonania, CPU, pamięć i I/O, aby optymalizacja opierała się na danych, a nie zgadywaniu.
+
+1. **Co mierzyć najpierw**
+
+- Request latency (p50/p95/p99)
+- Czas DB i liczba zapytań
+- Czas wywołań zewnętrznych API
+- Zużycie pamięci i peak usage
+- Najgorętsze funkcje/ścieżki kodu
+
+2. **Popularne narzędzia profilowania PHP**
+
+- **Blackfire** - profilowanie przyjazne produkcji i rekomendacje wydajnościowe.
+- **Xdebug (tryb profiler)** - szczegółowe trace’y/callgrind do analizy lokalnej.
+- **Rodzina Tideways/XHProf** - profilowanie na poziomie funkcji z opcjami niskiego narzutu.
+- **Narzędzia APM** (Datadog/New Relic/itd.) do rozproszonej widoczności requestów.
+
+3. **Praktyczny workflow profilowania**
+
+1. Odtwórz wolny endpoint/job na realistycznych danych.
+2. Zbierz trace profilowania.
+3. Zidentyfikuj największych „kontrybutorów” (DB, zewnętrzne I/O, funkcje CPU-heavy).
+4. Optymalizuj jedno wąskie gardło naraz.
+5. Profiluj ponownie i porównaj metryki.
+
+4. **Co zwykle wychodzi jako hotspoty**
+
+- Zapytania ORM typu N+1
+- Brak indeksów / kosztowne skany SQL
+- Powtarzana serializacja i przetwarzanie dużych payloadów
+- Synchroniczne wywołania sieciowe w ścieżce requestu
+- Nadmierny narzut frameworka/bootstrapu
+
+5. **Fokus profilowania pamięci**
+
+- Duże tablice/kolekcje ładowane jednorazowo
+- Długowieczne referencje w workerach
+- Niepotrzebne grafy obiektów i duplikacja danych
+
+6. **Najlepsze praktyki**
+
+- Profiluj w środowiskach zbliżonych do produkcji.
+- Benchmarkuj przed i po każdej optymalizacji.
+- Śledź regresje w CI/CD przez budżety wydajnościowe dla krytycznych endpointów.
+- Łącz profilowanie kodu z profilowaniem DB (`EXPLAIN`, slow query logs).
+
+Profilowanie zamienia tuning wydajności w mierzalny proces inżynierski i jest najbardziej niezawodnym sposobem bezpiecznego przyspieszania aplikacji PHP.
+
+</details>
+
+<details>
+<summary>54. Jak działa caching (Redis, Memcached)?</summary>
+
+#### PHP
+
+Caching przechowuje w szybkim storage (zwykle w pamięci) dane już obliczone lub często odczytywane, aby uniknąć powtarzania kosztownych operacji, takich jak zapytania DB czy ciężkie obliczenia.
+
+1. **Jak działa caching (podstawowy przepływ)**
+
+1. Aplikacja dostaje request o dane.
+2. Sprawdza cache po kluczu.
+3. Jeśli hit: szybko zwraca wartość z cache.
+4. Jeśli miss: ładuje ze źródła (DB/API), zapisuje do cache z TTL i zwraca wartość.
+
+2. **Popularne backendy cache**
+
+- **Redis**:
+  in-memory data store z bogatymi strukturami danych, opcjami persystencji, pub/sub i funkcjami rozproszonymi.
+- **Memcached**:
+  prosty rozproszony in-memory cache klucz-wartość, skupiony na szybkim efemerycznym cache’owaniu.
+
+3. **Typowe use case’y cache w PHP**
+
+- Cache wyników zapytań
+- Przechowywanie sesji
+- Cache odpowiedzi/fragmentów
+- Liczniki rate limitingu
+- Blokady i klucze idempotencyjne
+- Dane referencyjne obliczeniowe/konfiguracyjne
+
+4. **Ważne koncepcje projektowania cache**
+
+- **Strategia kluczy**: przewidywalny namespacing i wersjonowanie (`user:42:v2`).
+- **TTL**: dobieraj wygasanie do zmienności danych.
+- **Unieważnianie**: jawne invalidation przy zapisach, gdy świeżość ma znaczenie.
+- **Model spójności**: akceptuj eventual consistency tam, gdzie to odpowiednie.
+
+5. **Typowe pułapki**
+
+- Cache stampede (wiele równoległych missów).
+- Nieświeże dane przez słabą strategię unieważniania.
+- Zbyt duże wartości i słabe projektowanie kluczy.
+- Traktowanie cache jako źródła prawdy.
+
+6. **Najlepsze praktyki**
+
+- Cache’uj tylko kosztowne/częste odczyty.
+- Używaj krótkich, sensownych TTL i jittera, by ograniczyć zsynchronizowane wygasanie.
+- Dodawaj ochronę przed stampede (locki, request coalescing, stale-while-revalidate).
+- Monitoruj hit rate, latency, eviction i zużycie pamięci.
+- Trzymaj DB jako source of truth; cache jest warstwą przyspieszającą.
+
+Caching Redis/Memcached to jeden z najskuteczniejszych sposobów redukcji opóźnień i obciążenia bazy danych w produkcyjnych systemach PHP.
+
+</details>
+
+<details>
+<summary>55. Czym jest przetwarzanie asynchroniczne w PHP?</summary>
+
+#### PHP
+
+Przetwarzanie asynchroniczne oznacza przeniesienie wolnych lub niekrytycznych zadań poza synchroniczny przepływ HTTP requestu, aby użytkownik otrzymywał szybką odpowiedź, a praca w tle była wykonywana osobno.
+
+1. **Dlaczego async jest potrzebny**
+
+- Cykle request-response powinny być krótkie.
+- Niektóre operacje są kosztowne:
+  e-maile, przetwarzanie plików, generowanie raportów, wywołania zewnętrznych API.
+- Robienie tego wszystkiego inline zwiększa latency i wpływ awarii.
+
+2. **Jak to działa w systemach PHP**
+
+1. Główna aplikacja dostaje request.
+2. Krytyczny stan jest szybko zapisywany.
+3. Job/event w tle trafia do kolejki.
+4. Proces worker konsumuje i wykonuje zadanie asynchronicznie.
+
+3. **Typowe workloady async**
+
+- Powiadomienia e-mail/SMS/push
+- Przetwarzanie mediów (obrazy/wideo/PDF)
+- Importy/eksporty danych
+- Dostarczanie/retry webhooków
+- Aktualizacje indeksu wyszukiwania
+- Przetwarzanie analityki/zdarzeń
+
+4. **Korzyści**
+
+- Niższa latency widoczna dla użytkownika.
+- Lepsza odporność (retry, dead-letter queues).
+- Lepszy throughput dzięki odsprzęgleniu ciężkich zadań.
+- Czytelniejsze rozdzielenie pracy online vs offline.
+
+5. **Kompromisy**
+
+- Dodatkowa złożoność operacyjna (kolejki/workery/monitoring).
+- Eventual consistency między zapisem a efektami ubocznymi.
+- Potrzeba idempotency i handlerów bezpiecznych na retry.
+
+6. **Najlepsze praktyki**
+
+- Utrzymuj payloady jobów minimalne (ID, nie pełne obiekty).
+- Twórz handlery idempotentne.
+- Konfiguruj retry/backoff i obsługę dead-letter.
+- Monitoruj queue depth, worker lag i failure rate.
+- Jasno określaj, które zadania są sync-krytyczne, a które async-deferred.
+
+W architekturze PHP przetwarzanie asynchroniczne to kluczowa technika skalowania doświadczenia użytkownika i niezawodności pod realnym obciążeniem produkcyjnym.
+
+</details>
+
+<details>
+<summary>56. Czym są kolejki (RabbitMQ, Kafka, kolejki Redis)?</summary>
+
+#### PHP
+
+Kolejki to mechanizmy messagingowe używane do odsprzęgania producentów i konsumentów, umożliwiające przetwarzanie asynchroniczne, buforowanie oraz niezawodne wykonywanie zadań w tle.
+
+1. **Podstawowa koncepcja kolejki**
+
+- Producent publikuje wiadomość/job.
+- Broker przechowuje ją tymczasowo.
+- Konsument/worker przetwarza ją później.
+- Dzięki temu ciężka praca wypada z synchronicznego przepływu requestu.
+
+2. **Dlaczego kolejki są ważne**
+
+- Wygładzają piki ruchu (buforowanie).
+- Poprawiają czas odpowiedzi (offload zadań w tle).
+- Zwiększają niezawodność dzięki retry i obsłudze dead-letter.
+- Odsprzęgają serwisy i komponenty.
+
+3. **Popularne technologie kolejek w PHP**
+
+- **RabbitMQ**:
+  klasyczny broker wiadomości, silne wzorce routingu, acknowledgements, retry.
+- **Kafka**:
+  rozproszony event log, wysokoprzepustowe stream processing, wiadomości możliwe do odtworzenia.
+- **Kolejki oparte o Redis** (na przykład kolejki Laravel):
+  proste i szybkie dla wielu zadań backgroundowych na poziomie aplikacji.
+
+4. **Typowe use case’y kolejek w PHP**
+
+- Wysyłka e-maili/SMS/push
+- Dostarczanie webhooków
+- Przetwarzanie plików/obrazów/wideo
+- Indeksowanie wyszukiwania
+- Generowanie raportów
+- Integracje/fan-out zdarzeń
+
+5. **Koncepcje niezawodności**
+
+- **Ack/Nack**: potwierdzenie sukcesu lub żądanie retry.
+- **Polityka retry**: exponential backoff, maksymalna liczba prób.
+- **Dead-letter queue (DLQ)**: izolacja poison/failing messages.
+- **Idempotency**: bezpieczne ponowne przetwarzanie bez duplikowania efektów ubocznych.
+
+6. **Najlepsze praktyki**
+
+- Utrzymuj payloady wiadomości małe (preferuj ID zamiast dużych obiektów).
+- Wersjonuj schematy wiadomości.
+- Twórz konsumentów idempotentnych i obserwowalnych (logi/metryki/tracing).
+- Monitoruj queue depth, processing lag, failure rate, retry rate.
+- Ustal jasne SLA dla opóźnienia przetwarzania.
+
+Kolejki to fundamentalny building block skalowalnych i odpornych systemów PHP z obciążeniami asynchronicznymi.
+
+</details>
+
+<details>
+<summary>57. Czym jest architektura event-driven w PHP?</summary>
+
+#### PHP
+
+Architektura event-driven (EDA) to styl, w którym komponenty systemu komunikują się przez publikowanie i obsługę zdarzeń zamiast bezpośrednich synchronicznych wywołań.
+
+1. **Podstawowa koncepcja**
+
+- Producent emituje zdarzenie (na przykład `OrderPlaced`).
+- Zainteresowani konsumenci subskrybują i obsługują je niezależnie.
+- Publikujący nie musi wiedzieć, którzy konsumenci istnieją.
+
+2. **Dlaczego EDA jest użyteczna**
+
+- Odsprzęga moduły/serwisy.
+- Poprawia rozszerzalność (nowych konsumentów można dodać bez zmiany publishującego).
+- Wspiera przetwarzanie async i lepszą skalowalność.
+- Czyni efekty uboczne jawnymi jako zdarzenia domenowe/integracyjne.
+
+3. **Typowe use case’y PHP**
+
+- Zamówienie utworzone -> wyślij e-mail, zarezerwuj stan magazynowy, opublikuj analitykę.
+- Użytkownik zarejestrowany -> sekwencja powitalna, sync z CRM, audit log.
+- Płatność zakończona sukcesem -> generowanie faktury, powiadomienia, fulfillment.
+
+4. **Typy zdarzeń**
+
+- **Zdarzenia domenowe**: fakty istotne biznesowo wewnątrz granicy domeny.
+- **Zdarzenia integracyjne**: zdarzenia publikowane dla innych serwisów/systemów.
+
+5. **Opcje dostarczania w ekosystemie PHP**
+
+- In-process event bus/dispatcher (zdarzenia na poziomie frameworka).
+- Dostarczanie przez kolejkę/brokera (RabbitMQ/Kafka/Redis streams/queues) dla async i dystrybucji między serwisami.
+
+6. **Kluczowe zagadnienia projektowe**
+
+- Idempotentne handlery (zdarzenia mogą być dostarczone więcej niż raz).
+- Gwarancje kolejności (zależne od transportu/topic/strategii partycjonowania).
+- Polityka retry i dead-letter dla błędów.
+- Ewolucja schematów/wersji payloadów zdarzeń.
+
+7. **Najlepsze praktyki**
+
+- Używaj niemutowalnych, wersjonowanych payloadów zdarzeń.
+- Utrzymuj handlery skupione i niezależne.
+- Traktuj zdarzenia jako fakty (nazewnictwo w czasie przeszłym: `UserRegistered`).
+- Dodawaj obserwowalność: correlation IDs, tracing, metryki processing lag.
+
+EDA w PHP pomaga budować modułowe, skalowalne systemy, gdzie workflow mogą ewoluować bez ścisłego sprzężenia między komponentami.
+
+</details>
+
+<details>
+<summary>58. Czym są WebSockety i kiedy ich używać?</summary>
+
+#### PHP
+
+WebSockety to protokół tworzący trwałe, dwukierunkowe połączenie między klientem a serwerem, umożliwiające wymianę danych w czasie rzeczywistym bez ciągłego HTTP pollingu.
+
+1. **Czym WebSockety różnią się od HTTP**
+
+- HTTP: request/response, zwykle krótkotrwałe i inicjowane przez klienta.
+- WebSocket: jedno długotrwałe połączenie, gdzie obie strony mogą wysyłać wiadomości w dowolnym momencie.
+
+2. **Kiedy WebSockety są użyteczne**
+
+- Czat i komunikacja w czasie rzeczywistym.
+- Live dashboardy/aktualizacje monitoringu.
+- Edycja kolaboracyjna i wskaźniki obecności.
+- Feedy tradingowe/rynkowe, zdarzenia gamingowe, powiadomienia.
+
+3. **Dlaczego nie używać WebSocketów wszędzie**
+
+- Dodają złożoność operacyjną (stan połączeń, skalowanie, routing).
+- Nie są potrzebne dla prostych stron CRUD z rzadkimi aktualizacjami.
+- W niektórych przypadkach SSE albo short polling są prostsze i wystarczające.
+
+4. **Aspekty architektoniczne w PHP**
+
+- Tradycyjny model requestowy PHP-FPM nie jest idealny do długowiecznych połączeń.
+- Typowe podejścia:
+  dedykowane serwery WebSocket (Ratchet/Swoole/RoadRunner),
+  oddzielny serwis real-time + integracja backendu PHP przez Redis/message broker.
+
+5. **Wyzwania skalowania**
+
+- Efektywność fan-out połączeń i broadcastu.
+- Sticky sessions vs współdzielony pub/sub backplane.
+- Skalowanie horyzontalne z warstwami messagingowymi typu Redis/Kafka/NATS.
+
+6. **Bezpieczeństwo i niezawodność**
+
+- Uwierzytelniaj handshake/sesję WebSocket.
+- Waliduj schemat wiadomości i egzekwuj autoryzację per kanał/topic.
+- Stosuj rate limity i ochronę przed nadużyciami.
+- Obsługuj reconnecty, heartbeaty i backpressure.
+
+7. **Reguła kciuka**
+
+- Używaj WebSocketów, gdy low-latency server push jest kluczowym wymaganiem produktu.
+- Preferuj prostsze podejścia HTTP, gdy near-real-time jest wystarczające.
+
+WebSockety są potężnym narzędziem real-time w ekosystemach PHP, jeśli są połączone z właściwym runtime i modelem skalowania.
+
+</details>
+
+<details>
+<summary>59. Jak budować REST API w PHP?</summary>
+
+#### PHP
+
+Budowanie REST API w PHP oznacza wystawianie zasobów przez HTTP z czytelnymi trasami, standardowymi metodami, przewidywalnymi kodami statusu i spójnymi kontraktami JSON.
+
+1. **Podstawowe zasady REST**
+
+- Endpointy zorientowane na zasoby (`/users`, `/orders/{id}`).
+- Poprawne metody HTTP:
+  `GET`, `POST`, `PUT/PATCH`, `DELETE`.
+- Bezstanowe requesty.
+- Spójny format reprezentacji (zwykle JSON).
+
+2. **Typowe warstwy API w PHP**
+
+- Warstwa route/controller (wejście/wyjście HTTP).
+- Warstwa walidacji/auth/middleware.
+- Warstwa service/use-case (logika biznesowa).
+- Warstwa repository/data (persystencja).
+
+3. **Kluczowe elementy projektu**
+
+- Strategia wersjonowania (`/api/v1/...` albo header-based).
+- Standardowa obwiednia odpowiedzi i format błędów.
+- Konwencje paginacji/filtrowania/sortowania.
+- Idempotency dla istotnych operacji zapisu.
+
+4. **Poprawność HTTP**
+
+- Zwracaj znaczące kody statusu (`200`, `201`, `204`, `400`, `401`, `403`, `404`, `422`, `500`).
+- Ustawiaj `Content-Type: application/json`.
+- Używaj nagłówków cache tam, gdzie to właściwe.
+
+5. **Bazowy poziom bezpieczeństwa**
+
+- Uwierzytelnianie (token/JWT/sesja zależnie od kontekstu).
+- Kontrole autoryzacji per zasób/akcja.
+- Walidacja wejścia i kodowanie wyjścia.
+- Rate limiting i ochrona przed nadużyciami.
+- Ochrona CSRF dla API opartych o cookies.
+
+6. **Jakość operacyjna**
+
+- Ustrukturyzowane logowanie + request correlation IDs.
+- Scentralizowana obsługa wyjątków.
+- Dokumentacja OpenAPI/Swagger.
+- Testy kontraktowe/integracyjne dla krytycznych endpointów.
+
+7. **Przykładowy kształt endpointu**
+
+- `POST /api/v1/orders`
+- Waliduj payload -> uruchom use case -> zwróć `201 Created` z body/lokalizacją zasobu.
+
+8. **Praktyczna wskazówka**
+
+- Utrzymuj kontrolery cienkie.
+- Trzymaj logikę biznesową poza warstwą HTTP.
+- Kontrakty API rób jawne i stabilne.
+
+Dobre REST API w PHP to nie tylko trasy, ale przede wszystkim spójne kontrakty, bezpieczne zachowanie i niezawodność operacyjna.
+
+</details>
+
+<details>
+<summary>60. Czym jest GraphQL i jak jest używany w PHP?</summary>
+
+#### PHP
+
+GraphQL to język zapytań API i runtime, w którym klienci pobierają dokładnie te pola, których potrzebują, z typowanego schematu, zamiast konsumować sztywne payloady REST.
+
+1. **Podstawowe koncepcje GraphQL**
+
+- **Schema**: silnie typowany kontrakt (typy, pola, argumenty).
+- **Queries**: operacje odczytu.
+- **Mutations**: operacje zapisu.
+- **Resolvers**: funkcje/metody PHP, które pobierają/wyliczają dane pól.
+
+2. **Dlaczego zespoły używają GraphQL**
+
+- Unikanie over-fetchingu/under-fetchingu typowego w REST.
+- Jeden endpoint do elastycznego pobierania danych.
+- Lepsza prędkość pracy frontendowej przy złożonych potrzebach danych UI.
+- Silne wsparcie introspekcji i narzędzi.
+
+3. **Jak jest używany w PHP**
+
+- Definiowanie schematu GraphQL w kodzie/SDL.
+- Implementacja resolverów wywołujących serwisy/repozytoria.
+- Wykonanie zapytania względem schematu i zwrot odpowiedzi JSON.
+- Integracja auth, walidacji, limitów złożoności i cache w warstwie wykonania.
+
+4. **Typowe opcje stacku PHP**
+
+- `webonyx/graphql-php` (główna implementacja GraphQL)
+- Integracje/adaptery frameworkowe dla ekosystemów Laravel/Symfony
+
+5. **Kompromisy**
+
+- Większa złożoność niż podstawowy REST dla prostych API.
+- Wymaga ścisłej kontroli depth/complexity zapytań, aby unikać kosztownych zapytań.
+- Strategia cache może być trudniejsza niż cache endpointów REST.
+- Niezbędna jest dyscyplina governance/versioning schematu.
+
+6. **Najlepsze praktyki**
+
+- Utrzymuj resolvery cienkie; deleguj do serwisów aplikacyjnych.
+- Używaj wzorca DataLoader, aby unikać zaplecza N+1 calls.
+- Egzekwuj auth per pole/zasób tam, gdzie trzeba.
+- Ograniczaj depth/complexity zapytań i monitoruj ciężkie operacje.
+- Publikuj dokumentację schematu i traktuj zmiany schematu jak kontrakty.
+
+GraphQL w PHP jest najskuteczniejszy dla produktów data-rich z złożonymi potrzebami klientów, pod warunkiem że zespół świadomie zarządza złożonością zapytań i governance schematu.
+
+</details>
+
+<details>
+<summary>61. Czym jest uwierzytelnianie API (JWT, OAuth)?</summary>
+
+#### PHP
+
+Uwierzytelnianie API weryfikuje, kto wywołuje API i z jakimi uprawnieniami. Dwa popularne podejścia to auth tokenowe oparte o JWT oraz flow OAuth 2.0 / OpenID Connect.
+
+1. **Uwierzytelnianie oparte o JWT**
+
+- Po udanym logowaniu serwer wydaje podpisany token (JWT).
+- Klient wysyła token przy każdym requestcie (zwykle `Authorization: Bearer ...`).
+- API waliduje podpis, ważność i claims.
+
+Typowe claims JWT:
+- `sub` (subject/user id)
+- `exp` (expiration)
+- `iss`/`aud` (issuer/audience)
+- opcjonalnie role/scopes
+
+2. **OAuth 2.0 (framework autoryzacji)**
+
+- Zaprojektowany do delegated access i autoryzacji stron trzecich.
+- Dostęp jest nadawany przez scopes i czas życia tokenów.
+- Typowe flow: Authorization Code (+ PKCE), Client Credentials.
+
+3. **OpenID Connect (OIDC)**
+
+- Warstwa tożsamości nad OAuth 2.0.
+- Dodaje ID token i standaryzowane claims tożsamości użytkownika.
+
+4. **JWT vs OAuth (praktyczne rozróżnienie)**
+
+- JWT to format/mechanizm tokena.
+- OAuth to protokół autoryzacji.
+- Tokeny OAuth mogą być JWT albo opaque.
+
+5. **Najlepsze praktyki bezpieczeństwa**
+
+- Używaj wyłącznie HTTPS.
+- Trzymaj access tokeny krótkowieczne; bezpiecznie rotuj refresh tokeny.
+- Przy każdym requestcie waliduj podpis, issuer, audience i expiration.
+- Przechowuj tokeny bezpiecznie po stronie klienta (unikaj niebezpiecznych wzorców storage).
+- Wdrażaj strategię revocation/introspection tam, gdzie potrzebna.
+
+6. **Wskazówki implementacyjne w PHP**
+
+- Używaj sprawdzonych bibliotek do walidacji JWT/OAuth/OIDC.
+- Centralizuj middleware uwierzytelniania.
+- Oddzielaj uwierzytelnianie (kto) od autoryzacji (co wolno).
+- Reprezentuj uprawnienia jako role/scopes/policies sprawdzane na poziomie zasobu.
+
+Silne uwierzytelnianie API w PHP to poprawność protokołu, higiena cyklu życia tokenów i ścisła walidacja na każdym chronionym endpoincie.
+
+</details>
+
+<details>
+<summary>62. Czym jest rate limiting i bezpieczeństwo API?</summary>
+
+#### PHP
+
+Rate limiting to mechanizm kontroli, który ogranicza, ile requestów klient może wykonać w danym oknie czasu. To kluczowa część szerszego bezpieczeństwa API.
+
+1. **Dlaczego rate limiting jest potrzebny**
+
+- Zapobiega nadużyciom i atakom brute-force.
+- Chroni zasoby backendu przed przeciążeniem.
+- Zapewnia fair usage między klientami/tenantami.
+- Ogranicza wpływ błędnych lub złośliwych integracji.
+
+2. **Popularne strategie rate limitingu**
+
+- Fixed window (proste liczniki na interwał).
+- Sliding window (dokładniejszy rozkład).
+- Token bucket / leaky bucket (przyjazne burstom z limitem długoterminowym).
+
+3. **Gdzie stosuje się limity**
+
+- Per adres IP
+- Per API key/client id
+- Per user/account/tenant
+- Per czułość endpointu (ostrzej dla endpointów auth)
+
+4. **Typowa implementacja w stackach PHP**
+
+- Kontrole na poziomie middleware z użyciem liczników Redis/in-memory.
+- Egzekwowanie przez reverse proxy/API gateway (Nginx, cloud API gateway).
+- Zwracanie `429 Too Many Requests` z nagłówkami retry.
+
+5. **Bazowy poziom bezpieczeństwa API (poza limitami)**
+
+- Silne uwierzytelnianie (JWT/OAuth/OIDC).
+- Kontrole autoryzacji per zasób/akcja.
+- Walidacja wejścia i kodowanie wyjścia.
+- HTTPS wszędzie + bezpieczne nagłówki.
+- Limity rozmiaru requestu/czasu i kontrola timeoutów.
+- Audit logging, wykrywanie anomalii i alerting.
+
+6. **Najlepsze praktyki**
+
+- Używaj warstwowych kontroli: gateway + middleware aplikacyjne.
+- Stosuj różne kwoty według planu/poziomu zaufania.
+- Dodaj obsługę burstów i graceful degradation.
+- Chroń endpointy logowania/tokenów ostrzejszymi regułami i lockoutami.
+- Monitoruj trafienia limitów, zablokowane requesty i wzorce ataków.
+
+Rate limiting to jeden filar bezpieczeństwa API; realna ochrona wynika z połączenia go z uwierzytelnianiem, autoryzacją, walidacją i obserwowalnością.
+
+</details>
+
+<details>
+<summary>63. Czym jest piramida testów w PHP?</summary>
+
+#### PHP
+
+Piramida testów to model strategii testowania, który rekomenduje wiele szybkich testów niskiego poziomu i mniej wolnych testów wysokiego poziomu, aby zbalansować pewność, szybkość i koszt utrzymania.
+
+1. **Warstwy piramidy**
+
+- **Podstawa (największa): testy jednostkowe**
+  szybkie, izolowane testy funkcji/klas/reguł biznesowych.
+- **Środek: testy integracyjne**
+  weryfikują współpracę modułów (DB, cache, kolejka, adaptery zewnętrzne).
+- **Szczyt (najmniejszy): testy end-to-end/API/UI**
+  walidują pełne przepływy użytkownika przez cały system.
+
+2. **Dlaczego ten model działa**
+
+- Testy jednostkowe są tanie i uruchamiają się szybko w dużej liczbie.
+- Testy integracyjne wyłapują problemy na granicach i w połączeniach.
+- Testy E2E dają realistyczną pewność, ale są wolniejsze i bardziej kruche.
+
+3. **Mapowanie specyficzne dla PHP**
+
+- Unit: PHPUnit/Pest z mockami/stubami.
+- Integration: realne kontenery DB, repozytoria, klienci HTTP w kontrolowanym środowisku.
+- E2E/API: testy na poziomie requestów przeciwko uruchomionej aplikacji/usłudze.
+
+4. **Typowe antywzorce**
+
+- „Lodowy rożek”: za dużo testów UI/E2E, za mało testów jednostkowych.
+- Nadmierne mockowanie wszystkiego i utrata pewności integracyjnej.
+- Brak testów kontraktowych dla krytycznych integracji zewnętrznych.
+
+5. **Praktyczne rekomendacje**
+
+- Utrzymuj większość testów na poziomie unit.
+- Dodawaj celowane testy integracyjne wokół krytycznych granic.
+- Utrzymuj zestaw E2E mały, stabilny i biznesowo krytyczny.
+- Uruchamiaj szybkie zestawy na każdym commicie; cięższe zestawy na bramkach main/pre-release.
+
+6. **Rezultat**
+
+Zdrowa piramida daje szybki feedback deweloperom i wysoką pewność release’ów bez nadmiernego czasu CI i kosztownego utrzymania flaky testów.
+
+</details>
+
+<details>
+<summary>64. Czym jest testowanie jednostkowe (PHPUnit / Pest)?</summary>
+
+#### PHP
+
+Testowanie jednostkowe weryfikuje zachowanie najmniejszych testowalnych fragmentów kodu (funkcje, metody, klasy) w izolacji od systemów zewnętrznych.
+
+1. **Co powinny obejmować testy jednostkowe**
+
+- Reguły biznesowe i obliczenia.
+- Edge case’y i walidację inputu.
+- Zachowanie błędów/wyjątków.
+- Deterministyczne gałęzie logiki.
+
+2. **Zasada izolacji**
+
+- Testy jednostkowe nie powinny zależeć od realnej DB, sieci, filesystemu ani usług kolejkowych.
+- Zależności zewnętrzne zastępuje się test doubles (mocki/stuby/fake’i).
+
+3. **Narzędzia PHP**
+
+- **PHPUnit**: klasyczny i szeroko stosowany framework testowy.
+- **Pest**: ekspresyjna składnia zbudowana na ekosystemie PHPUnit.
+
+4. **Prosty przykład (styl PHPUnit)**
+
+```php
+final class PriceCalculatorTest extends TestCase
+{
+    public function test_applies_discount(): void
+    {
+        $calc = new PriceCalculator();
+        self::assertSame(90, $calc->applyDiscount(100, 10));
+    }
+}
+```
+
+5. **Dlaczego testy jednostkowe są ważne**
+
+- Szybki feedback podczas developmentu.
+- Bezpieczniejsza refaktoryzacja.
+- Lepsza dokumentacja oczekiwanego zachowania.
+- Wczesne wykrywanie regresji.
+
+6. **Najlepsze praktyki**
+
+- Utrzymuj testy małe, skupione i deterministyczne.
+- Stosuj czytelną strukturę arrange-act-assert.
+- Nazywaj testy według oczekiwanego zachowania.
+- Unikaj nadmiernego mockowania logiki wewnętrznej.
+- Uruchamiaj testy jednostkowe na każdym commicie w CI.
+
+Testowanie jednostkowe z PHPUnit/Pest to fundament niezawodnego dostarczania PHP, bo daje szybkie i precyzyjne potwierdzenie poprawności logiki rdzeniowej.
+
+</details>
+
+<details>
+<summary>65. Czym jest testowanie integracyjne?</summary>
+
+#### PHP
+
+Testowanie integracyjne weryfikuje, czy wiele komponentów współpracuje poprawnie (na przykład logika aplikacji + baza danych + cache + adaptery zewnętrzne), pozostając jednocześnie węższe niż pełne testy end-to-end.
+
+1. **Na czym skupiają się testy integracyjne**
+
+- Granice modułów i współpraca.
+- Poprawność persystencji/odczytu danych.
+- Zachowanie adapterów infrastrukturalnych.
+- Poprawność konfiguracji i połączeń (wiring).
+
+2. **Czym różni się od testów jednostkowych**
+
+- Testy jednostkowe izolują jeden komponent i mockują zależności.
+- Testy integracyjne używają realnych lub zbliżonych do realnych zależności, aby zweryfikować interakcje.
+
+3. **Typowe scenariusze integracyjne w PHP**
+
+- Repozytorium z realną testową DB/kontenerem.
+- Adapter klienta HTTP przeciwko sandboxowi/mock serverowi.
+- Flow publikowania/konsumowania kolejki w kontrolowanym środowisku.
+- Interakcja framework route + middleware + controller + service.
+
+4. **Dlaczego testy integracyjne są ważne**
+
+- Wyłapują problemy, których mocki nie pokażą (mismatch schematu SQL, błędy serializacji, błędy konfiguracji).
+- Zwiększają pewność na krytycznych granicach.
+- Ograniczają produkcyjne niespodzianki wynikające ze sprzężenia z infrastrukturą.
+
+5. **Najlepsze praktyki**
+
+- Uruchamiaj na dedykowanej infrastrukturze testowej (izolowane DB/cache).
+- Deterministycznie kontroluj setup/teardown danych.
+- Utrzymuj skupiony zakres: jeden aspekt integracji na test.
+- Unikaj zbędnej zależności od sieci, gdy wystarczą contract stuby.
+- Uwzględniaj suite integracyjny w CI dla krytycznych ścieżek.
+
+6. **Kompromis**
+
+- Są wolniejsze i cięższe niż testy jednostkowe, więc powinny być rzadsze i celowane.
+
+Testy integracyjne są pomostem między szybką pewnością unit a pełną pewnością systemową w pipeline’ach dostarczania PHP.
+
+</details>
+
+<details>
+<summary>66. Czym jest mocking i dlaczego jest potrzebny?</summary>
+
+#### PHP
+
+Mocking to technika testowania, w której realne zależności są zastępowane kontrolowanymi test doubles, aby izolować testowaną jednostkę i weryfikować interakcje.
+
+1. **Dlaczego mocking jest potrzebny**
+
+- Izoluje logikę biznesową od systemów zewnętrznych (DB, HTTP, kolejka, filesystem).
+- Czyni testy szybkimi i deterministycznymi.
+- Pozwala symulować rzadkie/scenariusze błędów trudne do odtworzenia na realnych usługach.
+- Umożliwia weryfikację kontraktów współpracy (metoda wywołana z oczekiwanymi argumentami).
+
+2. **Typowe rodzaje test doubles**
+
+- **Stub**: zwraca predefiniowane wartości.
+- **Mock**: weryfikuje oczekiwane interakcje/wywołania.
+- **Fake**: lekka działająca implementacja (na przykład repozytorium in-memory).
+- **Spy**: zapisuje wywołania do późniejszych asercji.
+
+3. **Koncepcja przykładu PHP**
+
+Przetestuj `OrderService`, mockując `PaymentGatewayInterface` i `OrderRepositoryInterface`, a następnie asercje:
+- serwis zwraca oczekiwany wynik
+- gateway wywołany raz z poprawną kwotą
+- zapis repozytorium wywołany z oczekiwanym stanem encji
+
+4. **Gdzie mocking jest odpowiedni**
+
+- Testy jednostkowe serwisów domenowych/aplikacyjnych.
+- Testowanie ścieżek błędów zależności zewnętrznych.
+- Weryfikacja kontraktów na granicach modułów.
+
+5. **Gdzie mocking nie wystarcza**
+
+- Zachowanie integracyjne z realnymi protokołami DB/sieci.
+- Problemy wiringu/konfiguracji frameworka.
+- Charakterystyki wydajnościowe i semantyka transakcji.
+
+6. **Najlepsze praktyki**
+
+- Mockuj tylko granice zewnętrzne, nie wewnętrzną czystą logikę.
+- Utrzymuj oczekiwania skupione na obserwowalnym zachowaniu.
+- Preferuj interfejsy dla zależności podlegających mockowaniu.
+- Łącz testy unit + integration (sam mocking nie jest pełną strategią).
+
+Mocking jest kluczowy dla szybkich, izolowanych testów jednostkowych PHP, ale powinien być równoważony testami integracyjnymi dla pewności działania realnego systemu.
+
+</details>
+
+<details>
+<summary>67. Czym jest code coverage?</summary>
+
+#### PHP
+
+Code coverage to metryka pokazująca, które części kodu źródłowego zostały wykonane przez testy automatyczne.
+
+1. **Co mierzy coverage**
+
+- **Line coverage**: wykonane linie.
+- **Branch/condition coverage**: wykonane gałęzie decyzyjne.
+- **Function/method coverage**: wykonane jednostki wywoływalne.
+
+2. **Dlaczego jest użyteczne**
+
+- Wskazuje nieprzetestowane obszary.
+- Pomaga priorytetyzować miejsca, gdzie brakuje testów.
+- Wspiera ocenę ryzyka regresji podczas refaktoryzacji.
+
+3. **Czego coverage NIE gwarantuje**
+
+- Wysokie coverage nie oznacza automatycznie wysokiej jakości testów.
+- Testy mogą wykonywać kod bez asercji poprawnego zachowania.
+- Krytyczne edge case’y nadal mogą zostać pominięte mimo dobrych procentów.
+
+4. **Narzędzia PHP**
+
+- PHPUnit/Pest potrafią generować raporty coverage.
+- Zwykle opiera się to o drivery Xdebug albo PCOV.
+- Raporty mogą być generowane jako tekst, HTML albo formaty CI.
+
+5. **Praktyczne użycie w zespołach**
+
+- Śledź trendy w czasie zamiast gonić jedną absolutną liczbę.
+- Ustawiaj sensowne minimalne progi dla krytycznych modułów.
+- Używaj delta coverage w checkach PR, aby zapobiegać regresjom testów.
+
+6. **Najlepsze praktyki**
+
+- Najpierw skup się na testowaniu krytycznej logiki biznesowej i ryzykownych ścieżek.
+- Łącz coverage z mutation testing/statyczną analizą tam, gdzie to możliwe.
+- Oceniaj jakość asercji, nie tylko wykonane linie.
+- Nie „pompuj” coverage przez flaky lub niskowartościowe testy.
+
+Code coverage to użyteczny sygnał kompletności testów, ale należy go interpretować w kontekście jakości testów i ryzyka, a nie jako samodzielny cel.
+
+</details>
+
+<details>
+<summary>68. Czym jest analiza statyczna (PHPStan, Psalm)?</summary>
+
+#### PHP
+
+Analiza statyczna sprawdza kod PHP bez jego uruchamiania, aby wcześnie wykrywać problemy typów, potencjalne błędy, martwy kod i naruszenia architektury.
+
+1. **Co wykrywa analiza statyczna**
+
+- Niezgodności typów i typy niemożliwe.
+- Problemy z nullowalnością oraz dostęp do niezdefiniowanych zmiennych/właściwości/metod.
+- Niepoprawne typy zwracane i niebezpieczne rzutowania.
+- Nieosiągalny/martwy kod i część wzorców błędnego użycia API.
+
+2. **Główne narzędzia**
+
+- **PHPStan**: szeroko stosowany, poziomy ścisłości, mocna integracja z ekosystemem.
+- **Psalm**: zaawansowany system typów, silna inferencja, opcje taint analysis.
+
+3. **Dlaczego jest wartościowa**
+
+- Znajduje defekty przed runtime i zanim obejmą je testy.
+- Poprawia bezpieczeństwo refaktoryzacji w dużych codebase’ach.
+- Wspiera silniejsze typowanie i czytelniejsze kontrakty.
+- Ogranicza incydenty produkcyjne wynikające z podstawowych błędów typów/przepływu.
+
+4. **Jak zespoły jej używają**
+
+- Uruchamianie w CI przy każdym PR.
+- Start od umiarkowanej ścisłości i stopniowe podnoszenie poziomu.
+- Utrzymywanie baseline dla legacy issue przy jednoczesnym blokowaniu nowych.
+
+5. **Najlepsze praktyki**
+
+- Konsekwentnie dodawaj type hinty/return types.
+- Używaj adnotacji generyków tam, gdzie to potrzebne (kolekcje, repozytoria).
+- Naprawiaj źródłowe problemy typowania zamiast tłumienia ostrzeżeń.
+- Trzymaj konfigurację analizy wersjonowaną i reviewowaną jak kod.
+
+6. **Analiza statyczna vs testy**
+
+- Analiza statyczna nie zastępuje testów.
+- Uzupełnia testy unit/integration, dowodząc poprawności strukturalnej/typów na ścieżkach, które testy mogą pominąć.
+
+Analiza statyczna z PHPStan/Psalm to wysokodźwigniowa bramka jakości dla nowoczesnych projektów PHP, szczególnie przy ciągłej refaktoryzacji.
+
+</details>
+
+<details>
+<summary>69. Czym jest Rector i jak używa się go do refaktoryzacji?</summary>
+
+#### PHP
+
+Rector to narzędzie do automatycznej refaktoryzacji PHP, które transformuje kod źródłowy przy użyciu predefiniowanych i własnych reguł, pomagając bezpiecznie modernizować codebase’y na dużą skalę.
+
+1. **Co robi Rector**
+
+- Wykonuje transformacje kodu oparte o AST.
+- Aktualizuje składnię/funkcje między wersjami PHP.
+- Refaktoryzuje wzorce użycia frameworków/bibliotek.
+- Automatyzuje powtarzalne, mechaniczne zmiany.
+
+2. **Typowe use case’y**
+
+- Upgrade ze starszych wersji PHP do nowszych standardów.
+- Migracja deprecated API do aktualnych alternatyw.
+- Egzekwowanie nowoczesnych konstrukcji języka (typed properties, constructor promotion itd.).
+- Duże porządki w codebase przed adopcją ścisłej analizy statycznej.
+
+3. **Jak używa się go w praktyce**
+
+1. Skonfiguruj `rector.php` z zestawami reguł.
+2. Uruchom Rectora na wybranych ścieżkach.
+3. Przejrzyj wygenerowany diff.
+4. Uruchom testy/analizę statyczną.
+5. Commituj inkrementalne, bezpieczne paczki zmian.
+
+4. **Dlaczego zespoły używają Rectora**
+
+- Radykalnie przyspiesza modernizację.
+- Ogranicza ludzki błąd przy powtarzalnych refaktorach.
+- Utrzymuje spójność refaktoryzacji między modułami.
+
+5. **Najlepsze praktyki**
+
+- Uruchamiaj Rectora na skupionych zakresach, nie na całym legacy codebase naraz.
+- Utrzymuj zmiany małe i łatwe do review.
+- Zawsze waliduj wynik testami + PHPStan/Psalm po transformacji.
+- Przypinaj wersję Rectora w toolingu dla powtarzalności.
+- Łącz automatyczną refaktoryzację z ręcznym przeglądem architektonicznym.
+
+6. **Ważne ograniczenie**
+
+- Rector świetnie obsługuje transformacje mechaniczne, ale nie zastąpi decyzji architektonicznych ani redesignu specyficznego dla domeny.
+
+Rector jest najskuteczniejszy jako część pipeline’u refaktoryzacji razem z analizą statyczną i testami, a nie jako samodzielne narzędzie „one-click migration”.
+
+</details>
+
+<details>
+<summary>70. Czym jest egzekwowanie standardów kodowania (PHP-CS-Fixer)?</summary>
+
+#### PHP
+
+Egzekwowanie standardów kodowania to praktyka automatycznego sprawdzania i poprawiania reguł stylu kodu, aby codebase pozostawał spójny, czytelny i przyjazny do review.
+
+1. **Dlaczego standardy kodowania są ważne**
+
+- Poprawiają czytelność w zespołach.
+- Redukują „szum stylu” w pull requestach.
+- Pozwalają skupić review kodu na logice, nie formatowaniu.
+- Utrzymują spójność długowiecznych codebase’ów.
+
+2. **Co robi PHP-CS-Fixer**
+
+- Skanuje pliki PHP względem skonfigurowanych reguł stylu.
+- Automatycznie przepisuje problemy formatowania/stylu.
+- Wspiera standardowe zestawy reguł (na przykład PSR-12) oraz reguły własne.
+
+3. **Typowy workflow**
+
+- Konfiguruj reguły w `.php-cs-fixer.php`.
+- Uruchamiaj checker w CI, aby zapobiegać driftowi.
+- Uruchamiaj fixer lokalnie/pre-commit, aby autoformatować zmienione pliki.
+
+4. **Typowe kategorie reguł**
+
+- Kolejność importów i usuwanie nieużywanych importów.
+- Styl odstępów/wcięć/nawiasów klamrowych.
+- Normalizacja składni tablic/funkcji.
+- Reguły preferujące strict typing i nowoczesną składnię.
+
+5. **Najlepsze praktyki**
+
+- Wcześnie uzgodnij jeden standard dla całego projektu.
+- Stosuj auto-fix w workflow deweloperskim (pre-commit/hooks/integracja z edytorem).
+- Utrzymuj CI jako bramkę egzekwującą (`--dry-run`).
+- Duże reformatowanie stosuj oddzielnie od zmian feature’owych, aby diffy były czytelne.
+
+6. **Narzędzia powiązane**
+
+- PHP-CS-Fixer (auto-fix formatowania/stylu).
+- PHP_CodeSniffer (sprawdzanie reguł i analiza standardów kodowania).
+- Łącz narzędzia stylu z PHPStan/Psalm, aby zapewnić jakość wykraczającą poza formatowanie.
+
+Egzekwowanie standardów kodowania narzędziami takimi jak PHP-CS-Fixer to niskokosztowy sposób poprawy utrzymywalności i szybkości pracy zespołu w projektach PHP.
+
+</details>
+
+<details>
+<summary>71. Czym jest pipeline CI/CD dla aplikacji PHP?</summary>
+
+#### PHP
+
+Pipeline CI/CD to zautomatyzowany workflow, który buduje, testuje, weryfikuje i wdraża aplikacje PHP w sposób spójny od commita do produkcji.
+
+1. **Cele CI (Continuous Integration)**
+
+- Szybka walidacja każdej zmiany.
+- Wczesne wykrywanie błędów przez automatyczne checki.
+- Utrzymywanie gałęzi main zawsze w stanie releasable.
+
+2. **Typowe etapy CI dla PHP**
+
+1. Instalacja zależności (`composer install`).
+2. Checki statyczne (PHPStan/Psalm, standardy kodowania).
+3. Testy unit/integration (PHPUnit/Pest).
+4. Build/package artefaktów (obraz Docker lub paczka wdrożeniowa).
+
+3. **Cele CD (Continuous Delivery/Deployment)**
+
+- Bezpieczne dostarczanie zwalidowanych artefaktów do środowisk.
+- Automatyzacja kroków rolloutu i minimalizacja błędów manualnych.
+- Wsparcie szybkiego rollbacku przy incydentach.
+
+4. **Typowe etapy CD**
+
+- Wdrożenie na staging.
+- Uruchomienie smoke checków/health checków.
+- Promocja tego samego artefaktu na produkcję.
+- Monitoring metryk i logów po wdrożeniu.
+
+5. **Najlepsze praktyki specyficzne dla PHP**
+
+- Używaj powtarzalnych instalacji opartych o lockfile.
+- Buduj niemutowalne artefakty raz i używaj ich ponownie między środowiskami.
+- Uruchamiaj migracje DB według kontrolowanej strategii.
+- Trzymaj sekrety/konfigurację poza artefaktem.
+- Stosuj wzorce rolloutu zero-downtime (blue-green/canary/rolling).
+
+6. **Bramki jakości**
+
+- Wymagany status zaliczenia testów.
+- Próg analizy statycznej.
+- Checki bezpieczeństwa (dependency audit/SAST).
+- Opcjonalne smoke-checki wydajności dla krytycznych endpointów.
+
+7. **Efekt**
+
+Solidny pipeline CI/CD poprawia częstotliwość wydań, niezawodność i pewność zespołu, jednocześnie redukując ryzyko produkcyjne w dostarczaniu PHP.
+
+</details>
+
+<details>
+<summary>72. Jak wdrażać aplikacje PHP?</summary>
+
+#### PHP
+
+Wdrażanie aplikacji PHP oznacza dostarczenie przetestowanego artefaktu na produkcję z przewidywalną konfiguracją runtime, minimalnym downtime i bezpiecznym rollbackiem.
+
+1. **Popularne cele wdrożeń**
+
+- Tradycyjny VM/bare metal z Nginx/Apache + PHP-FPM.
+- Platformy kontenerowe (Docker, Kubernetes, ECS).
+- Usługi platformowe (warianty PaaS/serverless).
+
+2. **Rekomendowany przepływ wdrożenia**
+
+1. Zbuduj niemutowalny artefakt (obraz/paczkę) w CI.
+2. Uruchom testy/checki statyczne/skany bezpieczeństwa.
+3. Wdróż artefakt na staging.
+4. Wykonaj smoke checki i health checki.
+5. Promuj ten sam artefakt na produkcję.
+
+3. **Podstawy runtime**
+
+- Konfiguracja i sekrety zależne od środowiska (bez hardcodowania).
+- Poprawne rozszerzenia PHP i ustawienia OPcache.
+- Zweryfikowana łączność z DB/cache/kolejką przy starcie.
+- Włączone ustrukturyzowane logowanie i monitoring.
+
+4. **Strategia migracji bazy danych**
+
+- Stosuj migracje backward-compatible przed przełączeniem ruchu.
+- Używaj podejścia expand-and-contract dla ryzykownych zmian schematu.
+- Utrzymuj skrypty migracyjne wersjonowane i powtarzalne.
+
+5. **Techniki zero/low-downtime**
+
+- Wdrożenia blue-green, rolling albo canary.
+- Graceful reload workerów (PHP-FPM/process manager).
+- Przełączanie ruchu przez load balancer oparte o health-checki.
+
+6. **Strategia rollbacku**
+
+- Szybki rollback do poprzedniej wersji artefaktu.
+- Kontrolowany rollback DB albo plan forward-fix.
+- Okno monitoringu po wdrożeniu z alertingiem.
+
+7. **Najlepsze praktyki**
+
+- Nigdy nie wdrażaj bezpośrednio z lokalnej maszyny.
+- Utrzymuj proces wdrożeń zautomatyzowany i audytowalny.
+- Używaj infrastructure as code tam, gdzie to możliwe.
+- Wyraźnie oddzielaj concerns build-time i runtime.
+
+Dobre wdrażanie PHP to system inżynierski: powtarzalne artefakty, bezpieczna mechanika rolloutu, obserwowalność i niezawodny rollback.
+
+</details>
+
+<details>
+<summary>73. Czym jest wdrożenie blue-green?</summary>
+
+#### PHP
+
+Wdrożenie blue-green to strategia release’u, w której utrzymywane są dwa identyczne środowiska produkcyjne: jedno aktywne (obsługujące ruch) i jedno bezczynne (kandydat na następny release).
+
+1. **Jak to działa**
+
+- **Blue**: aktualne środowisko live.
+- **Green**: nowa wersja wdrożona i zweryfikowana równolegle.
+- Po przejściu checków ruch jest przełączany z Blue na Green.
+- Stare środowisko pozostaje dostępne dla szybkiego rollbacku.
+
+2. **Dlaczego zespoły tego używają**
+
+- Minimalizuje downtime wdrożenia.
+- Redukuje ryzyko release’u dzięki niemal natychmiastowemu rollbackowi.
+- Umożliwia realistyczną weryfikację przed przełączeniem na stacku zbliżonym do produkcji.
+
+3. **Typowy przebieg rolloutu**
+
+1. Wdróż nowy release PHP na bezczynne środowisko.
+2. Uruchom health checki/smoke testy/strategię migracji.
+3. Przełącz load balancer/router na nowe środowisko.
+4. Monitoruj error rates/latency.
+5. Utrzymuj poprzednie środowisko tymczasowo na wypadek rollbacku.
+
+4. **Kluczowe kwestie dla aplikacji PHP**
+
+- Strategia sesji musi wspierać przełączanie środowisk (współdzielony Redis/session store).
+- Static assets/versioning powinny być kompatybilne między obiema wersjami środowiska.
+- Zmiany DB muszą być backward-compatible w oknie przejściowym.
+- Workery kolejek i cron joby muszą unikać duplikacji efektów ubocznych.
+
+5. **Zalety**
+
+- Szybka ścieżka rollbacku.
+- Bezpieczniejsze wdrożenia dla systemów high-traffic.
+- Jasne rozdzielenie „current” vs „candidate” release.
+
+6. **Kompromisy**
+
+- Wyższy koszt infrastruktury (dwa środowiska).
+- Większa złożoność operacyjna wokół kompatybilności danych/schematu.
+
+Blue-green to mocny wzorzec wdrożeń dla produkcyjnych systemów PHP, gdy krytyczne są uptime i szybkość rollbacku.
+
+</details>
+
+<details>
+<summary>74. Czym jest strategia rollbacku?</summary>
+
+#### PHP
+
+Strategia rollbacku to zdefiniowany z góry plan szybkiego przywrócenia stabilnej poprzedniej wersji, gdy wdrożenie powoduje incydenty (błędy, regresje, spadki wydajności, problemy z danymi).
+
+1. **Dlaczego strategia rollbacku jest krytyczna**
+
+- Skraca czas trwania incydentu i wpływ na klientów.
+- Zapobiega ad-hoc działaniom awaryjnym podczas awarii.
+- Zwiększa pewność przy częstych release’ach.
+
+2. **Co powinno być rollback-ready**
+
+- Wersja artefaktu/obrazu aplikacji.
+- Wersja infrastruktury/konfiguracji.
+- Stan feature flagów/togli.
+- Plan kompatybilności migracji bazy danych.
+
+3. **Popularne podejścia rollbacku**
+
+- **Artifact rollback**: ponowne wdrożenie poprzedniego known-good buildu.
+- **Traffic rollback**: przełączenie ruchu z powrotem na poprzednie środowisko (blue-green/canary revert).
+- **Feature rollback**: wyłączenie problematycznej feature flagi bez pełnego redeployu.
+
+4. **Rzeczywistość rollbacku bazy danych**
+
+- Rollback DB bywa najtrudniejszą częścią.
+- Preferuj migracje backward-compatible:
+  najpierw expand, potem contract.
+- Używaj forward-fix, gdy rzeczywisty rollback schematu jest ryzykowny.
+
+5. **Checklist operacyjny**
+
+- Zdefiniuj progi wyzwalające rollback (error rate, latency, nieudane checki).
+- Utrzymuj poprzedni release natychmiastowo wdrażalny.
+- Automatyzuj kroki rollbacku w pipeline/runbookach.
+- Zweryfikuj health po rollbacku i kontynuuj monitoring.
+
+6. **Najlepsze praktyki**
+
+- Regularnie ćwicz rollback na stagingu.
+- Utrzymuj małe release’y, aby zmniejszyć blast radius.
+- Łącz rollout i rollback z obserwowalnością (logi/metryki/traces).
+- Dokumentuj ownership i przepływ decyzji incydentowych.
+
+Silna strategia rollbacku to kluczowy mechanizm niezawodności dla produkcyjnego dostarczania PHP, szczególnie w środowiskach o wysokiej częstotliwości wdrożeń.
+
+</details>
+
+<details>
+  <summary><strong>#75. Czym jest serverless PHP (Laravel Vapor, Bref)?</strong></summary>
+
+Serverless PHP oznacza uruchamianie aplikacji PHP bez zarządzania własnymi serwerami. Kod działa jako funkcje uruchamiane na żądanie (np. AWS Lambda), a dostawca chmury odpowiada za skalowanie, utrzymanie i infrastrukturę.
+
+### 1. Jak to działa
+- Aplikacja jest pakowana jako funkcja (lub zestaw funkcji).
+- Każde żądanie uruchamia funkcję, która przetwarza logikę i zwraca odpowiedź.
+- Nie utrzymujesz stale działających maszyn ani konfiguracji Nginx/Apache.
+
+### 2. Popularne rozwiązania
+- **Laravel Vapor** — oficjalna platforma serverless dla Laravel oparta na AWS.
+- **Bref** — warstwa/runtime dla PHP na AWS Lambda, działa z wieloma frameworkami (Laravel, Symfony i inne).
+
+### 3. Zalety
+- **Automatyczne skalowanie** przy nagłych skokach ruchu.
+- **Płatność za użycie** (często niższe koszty przy nieregularnym obciążeniu).
+- Mniej pracy operacyjnej związanej z serwerami.
+
+### 4. Wyzwania
+- **Cold starts** (dodatkowe opóźnienie przy pierwszym uruchomieniu funkcji).
+- Ograniczenia środowiska Lambda (czas wykonania, system plików, rozmiar paczki).
+- Inne podejście do debugowania i monitorowania niż na tradycyjnych serwerach.
+
+### 5. Kiedy warto
+- API, webhooki, zadania asynchroniczne, aplikacje o zmiennym ruchu.
+- Projekty, gdzie zespół chce skupić się na logice biznesowej zamiast na administracji infrastrukturą.
+
+Podsumowując: serverless PHP (np. z Laravel Vapor lub Bref) to model wdrożenia, w którym kod PHP działa w funkcjach w chmurze, a zarządzanie serwerami jest maksymalnie ograniczone.
+
+</details>
+
+<details>
+  <summary><strong>#76. Czym są mikroserwisy a monolit w PHP?</strong></summary>
+
+#### PHP
+
+Monolit i mikroserwisy to style architektoniczne budowy systemów. W PHP oba podejścia mogą działać bardzo dobrze, jeśli wybór zależy od wielkości zespołu, złożoności domeny i dojrzałości operacyjnej.
+
+1. **Monolit (jedna aplikacja wdrożeniowa)**
+
+- Jeden codebase/jednostka wdrożeniowa zawierająca wiele możliwości biznesowych.
+- Wspólny runtime i zwykle wspólna baza danych.
+
+**Zalety**
+- Prostszy development, testowanie i wdrożenia.
+- Niższy narzut operacyjny.
+- Łatwiejsze lokalne debugowanie i transakcje między modułami.
+
+**Wady**
+- Trudniejsza ewolucja, jeśli granice między modułami są słabe.
+- Duże wdrożenia mogą zwiększać ryzyko release’u.
+- Skalowanie jest często zgrubne (cała aplikacja naraz).
+
+2. **Mikroserwisy (wiele niezależnie wdrażanych usług)**
+
+- System podzielony na małe usługi powiązane z domenami biznesowymi.
+- Każda usługa posiada własną logikę i często własny datastore.
+
+**Zalety**
+- Niezależne skalowanie/wdrożenia dla każdej usługi.
+- Jasne granice odpowiedzialności.
+- Elastyczność technologii/runtime per usługa.
+
+**Wady**
+- Wyższa złożoność (sieć, obserwowalność, auth, retry, spójność danych).
+- Trudniejszy lokalny development i debugowanie między usługami.
+- Wymagana znaczna dojrzałość DevOps/platformowa.
+
+3. **Praktyczna rzeczywistość w PHP**
+
+- Wiele zespołów osiąga sukces, zaczynając od modularnego monolitu.
+- Mikroserwisy stają się opłacalne, gdy wyraźne bounded contexts i skala zespołu uzasadniają koszty operacyjne.
+
+4. **Wytyczna decyzyjna**
+
+- Wybierz **monolit/modularny monolit**, gdy:
+  produkt jest na wczesnym etapie, zespół jest mały/średni i najważniejsza jest szybkość.
+- Wybierz **mikroserwisy**, gdy:
+  domeny są wyraźnie separowalne, potrzeby skalowania mocno się różnią, a możliwości platformowe są dojrzałe.
+
+5. **Częsty błąd**
+
+- Start od mikroserwisów zbyt wcześnie tworzy przypadkową złożoność bez realnego efektu biznesowego.
+
+W ekosystemie PHP pragmatyczna ścieżka najczęściej wygląda tak: najpierw dobrze ustrukturyzowany monolit, a potem selektywna ekstrakcja usług dopiero wtedy, gdy wymuszą to obiektywne ograniczenia.
+
+</details>
+
+<details>
+  <summary><strong>#77. Czym jest architektura modularnego monolitu?</strong></summary>
+
+#### PHP
+
+Modularny monolit to pojedyncza aplikacja wdrożeniowa zorganizowana jako wyraźnie odseparowane moduły wewnętrzne z jawnymi granicami i kontraktami.
+
+1. **Główna idea**
+
+- Jedna aplikacja / jeden runtime / jedna jednostka wdrożeniowa.
+- Wewnątrz wiele modułów biznesowych (bounded contexts).
+- Silne granice wewnętrzne ograniczające sprzężenie.
+
+2. **Czym się różni**
+
+- W porównaniu do klasycznego monolitu:
+  modularny monolit wymusza ścisłe granice modułów i reguły zależności.
+- W porównaniu do mikroserwisów:
+  zachowuje pojedynczą jednostkę wdrożeniową i unika złożoności systemów rozproszonych.
+
+3. **Typowa struktura modułów w PHP**
+
+- `Modules/Orders/...`
+- `Modules/Billing/...`
+- `Modules/Users/...`
+
+Każdy moduł zawiera własne:
+- logikę domenową,
+- serwisy aplikacyjne/use-case,
+- adaptery infrastrukturalne,
+- handlery HTTP/API (lub mapowane interfejsy).
+
+4. **Dlaczego zespoły to wybierają**
+
+- Szybszy rozwój niż w mikroserwisach.
+- Łatwiejsze lokalne debugowanie i transakcje.
+- Niższy narzut operacyjny.
+- Dobra ścieżka do organizacji domain-driven i przyszłej ekstrakcji usług.
+
+5. **Praktyki egzekwowania granic**
+
+- Komunikacja między modułami przez interfejsy/zdarzenia, nie przez bezpośrednie wnętrza.
+- Unikanie współdzielonych, mutowalnych „god utilities” między modułami.
+- Używanie analizy statycznej/testów do wymuszania kierunku zależności.
+- Jasna własność danych w bazie (nawet jeśli fizycznie jest współdzielona).
+
+6. **Kiedy to dobre dopasowanie**
+
+- Produkt i zespół rosną, ale złożoność mikroserwisów byłaby przedwczesna.
+- Potrzebna jest silna separacja domen przy prostym modelu wdrożenia.
+
+7. **Ścieżka ewolucji**
+
+- Start od modularnego monolitu.
+- Ekstrakcja wybranych modułów do usług dopiero wtedy, gdy presja skali/zespołu/odpowiedzialności jest realna i mierzalna.
+
+Modularny monolit to często najbardziej pragmatyczna architektura dla zespołów PHP, które chcą czystych granic już dziś, bez zbyt wczesnego narzutu systemu rozproszonego.
+
+</details>
+
+<details>
+  <summary><strong>#78. Jakie są najczęstsze podatności PHP w realnych projektach?</strong></summary>
+
+#### PHP
+
+Większość realnych incydentów bezpieczeństwa w projektach PHP wynika nie z samego języka, lecz z niebezpiecznej obsługi wejścia, słabej kontroli auth/sesji oraz problemów z zależnościami i konfiguracją.
+
+1. **Podatności typu injection**
+
+- SQL Injection przez niebezpieczne budowanie zapytań.
+- Command Injection przy przekazywaniu niezaufanego wejścia do wywołań shell/system.
+- Wstrzyknięcia typu header/LDAP/NoSQL w warstwach integracyjnych.
+
+2. **Podatności cross-site**
+
+- XSS (stored/reflected/DOM) z powodu braku kontekstowego escapingu wyjścia.
+- CSRF w flow opartym o cookies bez tokenów i zabezpieczeń SameSite.
+
+3. **Błędy uwierzytelniania i autoryzacji**
+
+- Słaba obsługa haseł lub brak MFA dla ról krytycznych.
+- Broken access control (IDOR/BOLA): użytkownik uzyskuje dostęp do cudzych zasobów przez zmianę ID.
+- Brak serwerowych kontroli autoryzacji na wrażliwych endpointach.
+
+4. **Problemy sesji i tokenów**
+
+- Niezabezpieczone flagi cookies (`Secure`, `HttpOnly`, `SameSite` nieustawione).
+- Session fixation/hijacking przez słabą rotację identyfikatorów.
+- Wyciekłe lub długowieczne tokeny API bez strategii unieważniania.
+
+5. **Ryzyka obsługi plików**
+
+- Niebezpieczny upload plików (brak walidacji typu/zawartości, upload wykonywalnych plików).
+- Path traversal (`../`) przez brak kontroli ścieżek.
+- Niebezpieczna deserializacja lub niebezpieczne parsowanie niezaufanych plików.
+
+6. **Ryzyka konfiguracji i zależności**
+
+- Włączony tryb debug w produkcji.
+- Ujawnione sekrety w repozytorium/logach/zrzutach środowiska.
+- Nieaktualne zależności z CVE.
+- Błędna konfiguracja nagłówków CORS/CSP/security.
+
+7. **Jak systemowo ograniczać ryzyko**
+
+- Ścisła walidacja wejścia + kodowanie wyjścia zależnie od kontekstu.
+- Prepared statements i bezpieczne warstwy zapytań.
+- Scentralizowane polityki authz i kontrole deny-by-default.
+- Bezpieczny cykl życia sesji/tokenów.
+- Skanowanie/łatanie zależności i utwardzona konfiguracja produkcyjna.
+- Regularne testy bezpieczeństwa (SAST/DAST), logowanie i playbooki incydentowe.
+
+Bezpieczeństwo projektów PHP to przede wszystkim dyscyplina: bezpieczny design, bezpieczne ustawienia domyślne i ciągła weryfikacja w kodzie, runtime oraz operacjach.
+
+</details>
+
+<details>
+  <summary><strong>#79. Jak wykrywać wycieki pamięci w PHP?</strong></summary>
+
+#### PHP
+
+W PHP „wycieki pamięci” często nie są klasycznymi, trwałymi wyciekami na poziomie kodu skryptu, lecz wzrostem użycia pamięci powodowanym przez długotrwałe procesy, utrzymywane referencje, duże bufory w pamięci, wycieki na poziomie rozszerzeń albo fragmentację alokatora.
+
+1. **Najpierw ustal, gdzie pojawia się zachowanie podobne do wycieku**
+
+- Model FPM/request: pamięć powinna wracać po zakończeniu requestu; wzrost zwykle wskazuje problemy na poziomie workerów lub zbyt ciężkie żądania.
+- Długotrwałe workery (consumerzy kolejek, demony, Swoole/RoadRunner): częstym źródłem jest stan utrzymywany między jobami.
+- Skrypty CLI batch: nieograniczone tablice/cache mogą symulować wycieki.
+
+2. **Instrumentuj pamięć w kodzie**
+
+- Używaj `memory_get_usage(true)` i `memory_get_peak_usage(true)` wokół kluczowych etapów pipeline.
+- Loguj pamięć per iteracja/job, aby wykryć trend monotonicznego wzrostu.
+- Dodaj liczniki przetworzonych elementów, by skorelować pamięć z wielkością obciążenia.
+
+3. **Stosuj diagnostykę runtime/procesową**
+
+- Obserwuj RSS workerów w czasie przez `ps`, `top`, metryki kontenera lub APM.
+- Porównuj zużycie na poziomie PHP i OS, aby wykryć zachowanie alokatora/fragmentacji.
+- W FPM monitoruj pamięć worker pool i wzorce restartów.
+
+4. **Używaj profilerów i wyspecjalizowanych narzędzi**
+
+- Xdebug/Blackfire/Tideways do hotspotów alokacji i ciężkich ścieżek wywołań.
+- Valgrind/ASan dla wycieków na poziomie rozszerzeń C/native (buildy debug, wolniejsze, ale precyzyjne).
+- Frameworkowe paski debug/profilery do snapshotów pamięci requestów.
+
+5. **Typowe przyczyny źródłowe do sprawdzenia**
+
+- Statyczne/globalne tablice akumulujące dane między jobami.
+- Listenery zdarzeń/closures nieintencjonalnie przechwytujące duże obiekty.
+- ORM identity map lub wyniki zapytań trzymane zbyt długo.
+- Duże kopie stringów/payloadów JSON podczas transformacji.
+- Referencje cykliczne + opóźniony GC w długich pętlach.
+
+6. **Wzorce mitygacji po wykryciu**
+
+- Przetwarzaj dane w chunkach/streamach zamiast pełnych kolekcji in-memory.
+- Jawnie `unset()` dużych zmiennych i okazjonalnie `gc_collect_cycles()` w długich pętlach.
+- Odtwarzaj proces workera po N jobach/czasie (`--max-jobs`, restarty supervisora).
+- Ustaw rozsądne limity pamięci i fail-fast behavior.
+- Aktualizuj zależności/rozszerzenia, gdy wycieki natywne są naprawiane upstream.
+
+Praktyczne podejście to: zmierzyć trend, odizolować hotspot, potwierdzić profilowaniem i wymusić granice cyklu życia dla procesów długotrwałych.
+
+</details>
+
+<details>
+  <summary><strong>#80. Jak optymalizować zużycie pamięci?</strong></summary>
+
+#### PHP
+
+Optymalizacja pamięci w PHP to głównie kontrola cyklu życia danych, ograniczanie zbędnych kopii oraz stosowanie przetwarzania strumieniowego/chunkowego zamiast ładowania wszystkiego naraz.
+
+1. **Przetwarzaj dane przyrostowo**
+
+- Dla dużych zbiorów preferuj generatory (`yield`) zamiast budowania ogromnych tablic.
+- Czytaj pliki/strumienie linia po linii albo w chunkach.
+- Stronicuj odczyty z bazy (`LIMIT/OFFSET` lub cursor/chunk API) w jobach batch.
+
+2. **Unikaj niepotrzebnych kopii**
+
+- Ograniczaj konkatenację stringów w ciasnych pętlach; stosuj strategie buforowania.
+- Unikaj wielokrotnego `array_merge` na dużych tablicach wewnątrz pętli.
+- Uważaj na transformacje duplikujące duże struktury.
+
+3. **Zwalniaj pamięć wcześnie w skryptach długotrwałych**
+
+- Używaj `unset()` dla dużych zmiennych tymczasowych po użyciu.
+- Dziel pracę na ograniczone iteracje; czyść stan per iteracja.
+- Przy referencjach cyklicznych w długich pętlach okresowo wywołuj `gc_collect_cycles()`.
+
+4. **Wybieraj wydajne wzorce dostępu do danych**
+
+- W SQL pobieraj tylko potrzebne kolumny, nie `SELECT *`.
+- Hydratuj lekkie DTO/tablice, gdy pełne modele ORM nie są potrzebne.
+- Ostrożnie używaj lazy-loading; unikaj zapytań N+1 i nadmiernych grafów obiektów.
+
+5. **Stosuj limity runtime i kontrolę cyklu życia workerów**
+
+- Ustaw rozsądny `memory_limit`, aby system fail-fast zamiast degradować hosta.
+- Dla workerów kolejek restartuj proces po N jobach/czasie, aby unikać długoterminowego dryfu pamięci.
+- Monitoruj trend pamięci przez `memory_get_usage(true)` oraz metryki OS.
+
+6. **Cache’uj mądrze, nie bezrefleksyjnie**
+
+- Cache’uj tylko kosztowne i wartościowe obliczenia.
+- Przechowuj kompaktowe payloady cache; kompresuj, gdy to korzystne.
+- Używaj TTL/inwalidacji, by zapobiegać nieograniczonemu wzrostowi cache.
+
+7. **Profiluj przed i po**
+
+- Używaj Xdebug/Blackfire/Tideways/APM do znalezienia realnych hotspotów.
+- Najpierw optymalizuj zmierzone bottlenecks; unikaj przedwczesnych mikrooptymalizacji.
+
+W praktyce największe zyski dają: streaming/chunking, kontrola cyklu życia obiektów oraz ograniczanie dużych alokacji tymczasowych.
+
+</details>
+
+<details>
+  <summary><strong>#81. Jak odwrócić string bez funkcji wbudowanych?</strong></summary>
+
+#### PHP
+
+Główna idea: przejść po stringu od końca do początku i zbudować nowy string znak po znaku.
+
+```php
+<?php
+function reverseString(string $s): string
+{
+    $result = '';
+    $length = strlen($s);
+
+    for ($i = $length - 1; $i >= 0; $i--) {
+        $result .= $s[$i];
+    }
+
+    return $result;
+}
+```
+
+Złożoność czasowa to `O(n)`, a dodatkowa pamięć to `O(n)` na odwrócony wynik.
+
+Uwagi na rozmowie:
+
+- Ta wersja oparta na bajtach działa dla ASCII.
+- Dla UTF-8/stringów wielobajtowych indeksowanie po bajtach może psuć znaki, więc potrzebne jest podejście multibyte-safe.
+
+</details>
+
+<details>
+  <summary><strong>#82. Jak usunąć duplikaty z tablicy?</strong></summary>
+
+#### PHP
+
+Standardowe podejście to śledzenie już widzianych wartości w mapie haszującej i pozostawienie tylko pierwszego wystąpienia.
+
+```php
+<?php
+function removeDuplicates(array $input): array
+{
+    $seen = [];
+    $result = [];
+
+    foreach ($input as $value) {
+        $key = is_scalar($value) || $value === null
+            ? (string) $value . ':' . gettype($value)
+            : serialize($value);
+
+        if (!isset($seen[$key])) {
+            $seen[$key] = true;
+            $result[] = $value;
+        }
+    }
+
+    return $result;
+}
+```
+
+Dlaczego ta wersja jest dobra na rozmowie:
+
+- Zachowuje kolejność wstawiania.
+- Działa średnio w czasie liniowym: `O(n)`.
+- Obsługuje skalary, `null` i wartości złożone przez `serialize`.
+
+Jeśli pytanie dopuszcza funkcje wbudowane, `array_unique()` jest krótsze, ale ręczna logika hash-set lepiej pokazuje fundamenty.
+
+</details>
+
+<details>
+  <summary><strong>#83. Jak znaleźć drugą największą liczbę?</strong></summary>
+
+#### PHP
+
+Solidne rozwiązanie w jednym przebiegu polega na śledzeniu największej i drugiej największej **różnej** wartości podczas iteracji po tablicy.
+
+```php
+<?php
+function secondLargest(array $numbers): ?int
+{
+    $max = null;
+    $second = null;
+
+    foreach ($numbers as $n) {
+        if (!is_int($n)) {
+            continue;
+        }
+
+        if ($max === null || $n > $max) {
+            if ($max !== $n) {
+                $second = $max;
+            }
+            $max = $n;
+            continue;
+        }
+
+        if ($n !== $max && ($second === null || $n > $second)) {
+            $second = $n;
+        }
+    }
+
+    return $second;
+}
+```
+
+Zachowanie:
+
+- Zwraca `null`, jeśli nie ma drugiego różnego maksimum (np. `[5]`, `[7, 7]`).
+- Złożoność czasowa: `O(n)`.
+- Złożoność pamięciowa: `O(1)`.
+
+</details>
+
+<details>
+  <summary><strong>#84. Jak sprawdzić, czy string jest palindromem?</strong></summary>
+
+#### PHP
+
+Palindrom czyta się tak samo od przodu i od tyłu. Wydajnie można to sprawdzić, porównując znaki z obu końców i przesuwając się do środka.
+
+```php
+<?php
+function isPalindrome(string $s): bool
+{
+    $left = 0;
+    $right = strlen($s) - 1;
+
+    while ($left < $right) {
+        if ($s[$left] !== $s[$right]) {
+            return false;
+        }
+        $left++;
+        $right--;
+    }
+
+    return true;
+}
+```
+
+Złożoność:
+
+- Czas: `O(n)`
+- Pamięć: `O(1)`
+
+Uwagi na rozmowie:
+
+- To podejście bajtowe, dobre dla ASCII.
+- Dla UTF-8 użyj podejścia bezpiecznego dla stringów wielobajtowych przed indeksowaniem znaków.
+- Ustal, czy należy ignorować spacje, interpunkcję i wielkość liter; jeśli tak, najpierw znormalizuj wejście.
+
+</details>
+
+<details>
+  <summary><strong>#85. Jak sprawdzić, czy liczba jest pierwsza?</strong></summary>
+
+#### PHP
+
+Liczba `n` jest pierwsza, jeśli ma dokładnie dwa dodatnie dzielniki: `1` i `n`.  
+Wydajne sprawdzenie: testuj podzielność tylko do `sqrt(n)`.
+
+```php
+<?php
+function isPrime(int $n): bool
+{
+    if ($n < 2) {
+        return false;
+    }
+
+    if ($n === 2) {
+        return true;
+    }
+
+    if ($n % 2 === 0) {
+        return false;
+    }
+
+    $limit = (int) sqrt($n);
+    for ($i = 3; $i <= $limit; $i += 2) {
+        if ($n % $i === 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+```
+
+Złożoność:
+
+- Czas: `O(sqrt(n))`
+- Pamięć: `O(1)`
+
+To standardowe rozwiązanie na rozmowie: poprawne, wystarczająco szybkie i łatwe do uzasadnienia.
+
+</details>
+
+<details>
+  <summary><strong>#86. Jak zaimplementować silnię rekurencyjnie?</strong></summary>
+
+#### PHP
+
+Rekurencyjna silnia używa definicji `n! = n * (n - 1)!` z przypadkiem bazowym `0! = 1` (oraz `1! = 1`).
+
+```php
+<?php
+function factorial(int $n): int
+{
+    if ($n < 0) {
+        throw new InvalidArgumentException('Silnia nie jest zdefiniowana dla liczb ujemnych.');
+    }
+
+    if ($n === 0 || $n === 1) {
+        return 1;
+    }
+
+    return $n * factorial($n - 1);
+}
+```
+
+Złożoność:
+
+- Czas: `O(n)`
+- Pamięć: `O(n)` ze względu na stos rekurencji.
+
+Uwaga na rozmowie: wersja iteracyjna używa `O(1)` pamięci stosu i jest bezpieczniejsza dla bardzo dużych `n`.
+
+</details>
+
+<details>
+  <summary><strong>#87. Jak zaimplementować sortowanie ręcznie?</strong></summary>
+
+#### PHP
+
+Na rozmowie czytelnym manualnym przykładem jest Bubble Sort: wielokrotnie zamieniasz sąsiednie elementy, jeśli są w złej kolejności.
+
+```php
+<?php
+function bubbleSort(array $arr): array
+{
+    $n = count($arr);
+
+    for ($i = 0; $i < $n - 1; $i++) {
+        $swapped = false;
+
+        for ($j = 0; $j < $n - 1 - $i; $j++) {
+            if ($arr[$j] > $arr[$j + 1]) {
+                $tmp = $arr[$j];
+                $arr[$j] = $arr[$j + 1];
+                $arr[$j + 1] = $tmp;
+                $swapped = true;
+            }
+        }
+
+        if (!$swapped) {
+            break;
+        }
+    }
+
+    return $arr;
+}
+```
+
+Złożoność:
+
+- Najgorszy/średni czas: `O(n^2)`
+- Najlepszy przypadek (już posortowane z early break): `O(n)`
+- Pamięć: `O(1)` dodatkowo (pomijając semantykę kopiowania wyniku)
+
+Jeśli padnie pytanie o wydajniejszy algorytm, wyjaśnij Merge Sort (`O(n log n)`) albo Quick Sort średnio (`O(n log n)`).
+
+</details>
+
+<details>
+  <summary><strong>#88. Jak wygenerować ciąg Fibonacciego?</strong></summary>
+
+#### PHP
+
+Najbardziej praktyczne podejście jest iteracyjne: zaczynasz od `0, 1` i dopisujesz sumę dwóch poprzednich liczb.
+
+```php
+<?php
+function fibonacciSequence(int $count): array
+{
+    if ($count <= 0) {
+        return [];
+    }
+
+    if ($count === 1) {
+        return [0];
+    }
+
+    $result = [0, 1];
+
+    for ($i = 2; $i < $count; $i++) {
+        $result[] = $result[$i - 1] + $result[$i - 2];
+    }
+
+    return $result;
+}
+```
+
+Złożoność:
+
+- Czas: `O(n)`
+- Pamięć: `O(n)` na przechowanie sekwencji
+
+Uwaga na rozmowie:
+
+- Rekurencyjny Fibonacci bez memoizacji ma złożoność wykładniczą i zwykle nie jest akceptowalny w odpowiedziach nastawionych na wydajność.
+- Jeśli potrzebna jest tylko n-ta wartość, pamięć można zredukować do `O(1)`, trzymając tylko dwie poprzednie liczby.
+
+</details>
+
+<details>
+  <summary><strong>#89. Jak znaleźć najczęściej występujący element?</strong></summary>
+
+#### PHP
+
+Użyj mapy częstotliwości (hash table): zliczaj wystąpienia każdej wartości, a potem zwróć klucz z maksymalnym licznikiem.
+
+```php
+<?php
+function mostFrequentElement(array $items): mixed
+{
+    if ($items === []) {
+        return null;
+    }
+
+    $freq = [];
+    $bestKey = null;
+    $bestCount = 0;
+
+    foreach ($items as $item) {
+        $key = is_scalar($item) || $item === null
+            ? (string) $item . ':' . gettype($item)
+            : serialize($item);
+
+        if (!isset($freq[$key])) {
+            $freq[$key] = ['value' => $item, 'count' => 0];
+        }
+
+        $freq[$key]['count']++;
+
+        if ($freq[$key]['count'] > $bestCount) {
+            $bestCount = $freq[$key]['count'];
+            $bestKey = $key;
+        }
+    }
+
+    return $bestKey !== null ? $freq[$bestKey]['value'] : null;
+}
+```
+
+Złożoność:
+
+- Czas: `O(n)`
+- Pamięć: `O(k)`, gdzie `k` to liczba różnych elementów
+
+Zachowanie przy remisie: ta implementacja zwraca pierwszy element, który osiągnął najwyższą częstotliwość.
+
+</details>
+
+<details>
+  <summary><strong>#90. Jak zaprojektować system PHP pod wysokie obciążenie?</strong></summary>
+
+#### PHP
+
+W systemach PHP o wysokim obciążeniu kluczowa zasada to: utrzymać aplikację bezstanową, wynieść ciężkie operacje poza ścieżkę requestu i skalować horyzontalnie za niezawodną infrastrukturą.
+
+1. **Bazowa architektura**
+
+- Bezstanowe instancje aplikacji PHP za load balancerem.
+- Nginx/Envoy + PHP-FPM (lub RoadRunner/Swoole, gdy to uzasadnione).
+- Osobne warstwy danych, cache, kolejek i object storage.
+
+2. **Strategia danych**
+
+- Primary DB + read replicas; rozdzielenie ścieżek read/write.
+- Poprawne indeksowanie, optymalizacja zapytań i monitoring slow queries.
+- Partycjonowanie/sharding dopiero, gdy wyczerpano skalowanie pojedynczego węzła.
+
+3. **Warstwy cache**
+
+- CDN/edge cache dla statycznych i cache’owalnych odpowiedzi dynamicznych.
+- Redis/Memcached dla danych aplikacyjnych i „gorących” wyników zapytań.
+- Jasna polityka inwalidacji cache (TTL + inwalidacja zdarzeniowa).
+
+4. **Przetwarzanie asynchroniczne**
+
+- Wynoś kosztowne zadania do kolejek (maile, raporty, przetwarzanie mediów).
+- Używaj idempotentnych workerów z retry i dead-letter queues.
+- Utrzymuj requesty HTTP krótkie i przewidywalne.
+
+5. **Niezawodność i odporność**
+
+- Timeouty, circuit breakery, bulkheads dla zależności zewnętrznych.
+- Graceful degradation, gdy usługi niekrytyczne zawodzą.
+- Health checki, auto-restarty i rolling deployments.
+
+6. **Obserwowalność**
+
+- Scentralizowane logi z correlation IDs.
+- Metryki: p95/p99 latency, error rate, queue lag, saturacja DB/cache.
+- Tracing dla ścieżek requestów między usługami.
+
+7. **Praktyki operacyjne**
+
+- Capacity planning i load testing przed wydarzeniami szczytowymi.
+- Wdrożenia blue-green/canary dla redukcji ryzyka.
+- Hardening bezpieczeństwa i rate limiting na poziomie edge i aplikacji.
+
+Skalowalny projekt PHP to głównie dyscyplina infrastrukturalna i architektoniczna: bezstanowa warstwa aplikacji, wydajny dostęp do danych, agresywne cache’owanie i asynchroniczne wykonanie zadań w tle.
+
+</details>
+
+<details>
+  <summary><strong>#91. Jak skalować PHP horyzontalnie?</strong></summary>
+
+#### PHP
+
+Skalowanie horyzontalne w PHP oznacza dodawanie większej liczby identycznych węzłów aplikacji i dopilnowanie, aby każde żądanie mogło zostać obsłużone przez dowolny węzeł, bez polegania na lokalnym stanie.
+
+1. **Uczyń warstwę aplikacji bezstanową**
+
+- Przechowuj sesje w Redis/DB, nie na lokalnym dysku.
+- Przenoś uploadowane pliki do współdzielonego/object storage (np. zgodnego z S3).
+- Traktuj cache lokalny węzła jako opcjonalny, a nie jako źródło prawdy.
+
+2. **Umieść węzły za load balancerem**
+
+- Użyj load balancera L4/L7 (Nginx, HAProxy, cloud LB).
+- Włącz health checki i automatyczne usuwanie niezdrowych węzłów.
+- Sticky sessions to obejście tymczasowe; preferuj prawdziwie bezstanowy projekt.
+
+3. **Skaluj zależności read-heavy**
+
+- Dodaj read replicas DB i poprawnie kieruj ruch odczytowy.
+- Dodaj rozproszony cache (Redis/Memcached), aby odciążyć primary DB.
+- Używaj CDN dla zasobów statycznych i odpowiedzi cache’owalnych.
+
+4. **Kontroluj obciążenia w tle**
+
+- Używaj workerów kolejkowych dla ciężkich zadań.
+- Skaluj workerów niezależnie od węzłów HTTP.
+- Zapewnij idempotencję zadań i bezpieczny retry.
+
+5. **Ustandaryzuj runtime przez kontenery/obrazy**
+
+- Niezmienne obrazy dla spójnych wdrożeń.
+- Polityki autoskalowania oparte na sygnałach CPU, pamięci i opóźnień.
+- Scentralizowane zarządzanie konfiguracją/sekretami.
+
+6. **Obserwowalność i sygnały skalowania**
+
+- Śledź p95/p99 latency, saturację, error rate, queue lag.
+- Monitoruj presję puli połączeń DB i cache hit ratio.
+- Używaj tych metryk do autoskalowania i capacity planningu.
+
+W praktyce skalowanie horyzontalne PHP jest proste, gdy stan jest eksternalizowany, a infrastruktura obsługuje dystrybucję ruchu, health i elastyczność.
+
+</details>
+
+<details>
+  <summary><strong>#92. Jak obsłużyć miliony użytkowników?</strong></summary>
+
+#### PHP
+
+Obsługa milionów użytkowników to zadanie projektowania systemu, a nie pojedynczy trik w PHP. Rozwiązanie wymaga warstwowego skalowania: edge, aplikacja, dane i operacje.
+
+1. **Dystrybucja ruchu i warstwa edge**
+
+- Globalny CDN dla zasobów statycznych i cache’owalnych odpowiedzi API.
+- Load balancery z autoskalowanymi, bezstanowymi węzłami aplikacji PHP.
+- Rate limiting i ochrona przed botami na poziomie edge.
+
+2. **Architektura aplikacji**
+
+- Dziel bottlenecki monolitu na bounded services, gdy to potrzebne.
+- Minimalizuj synchroniczną ścieżkę requestu; ciężkie zadania przenoś do kolejek.
+- Używaj kluczy idempotencji dla krytycznych operacji zapisu.
+
+3. **Warstwa danych w skali**
+
+- Primary DB dla zapisów, wiele read replicas dla ruchu odczytowego.
+- Agresywne indeksowanie i tuning zapytań; unikaj antywzorców ORM.
+- Partycjonowanie/sharding dla bardzo dużych zbiorów i „hot tenants”.
+
+4. **Strategia cache**
+
+- Wielowarstwowy cache: CDN -> Redis/Memcached -> DB.
+- Cache’uj hot objects, widoki obliczane i kosztowne zapytania.
+- Silne reguły inwalidacji, by zapobiegać przestarzałym krytycznym danym.
+
+5. **Przetwarzanie asynchroniczne i event-driven**
+
+- Workery kolejkowe dla e-maili, powiadomień, mediów i pipeline’ów analitycznych.
+- Retry z backoff, dead-letter queues i idempotentne handlery.
+- Strumieniowanie zdarzeń do odbiorców downstream zamiast blokowania requestów.
+
+6. **Niezawodność i odporność**
+
+- Graceful degradation dla funkcji niekrytycznych pod presją.
+- Budżety timeoutów i circuit breakery dla zależności.
+- Wdrożenia multi-AZ i przetestowane procedury failover.
+
+7. **Obserwowalność i dyscyplina pojemnościowa**
+
+- SLO dla opóźnień/błędów; śledź p95/p99 i saturację.
+- Ciągłe load/stress testy przed dużymi premierami.
+- Prognozowanie pojemności na podstawie realnych wzorców użycia.
+
+Przy skali „milionów” sukces daje przewidywalna architektura, kontrolowany wzrost danych i silne praktyki operacyjne bardziej niż optymalizacje na poziomie samego języka.
+
+</details>
+
+<details>
+  <summary><strong>#93. Jak zaprojektować strategię cache’owania?</strong></summary>
+
+#### PHP
+
+Dobra strategia cache’owania zaczyna się od wzorców dostępu i wymagań spójności, a nie wyłącznie od wyboru technologii.
+
+1. **Zdefiniuj, co cache’ować**
+
+- Kosztowne wyniki zapytań DB.
+- Agregowane/obliczane odpowiedzi API.
+- Kontekst sesji i autoryzacji (gdy to bezpieczne).
+- Dane statyczne/konfiguracyjne/referencyjne o niskiej częstotliwości zmian.
+
+2. **Stosuj cache wielowarstwowy**
+
+- Cache edge/CDN dla zasobów statycznych i cache’owalnych odpowiedzi HTTP.
+- Cache aplikacyjny (Redis/Memcached) dla hot objects i wyników zapytań.
+- Optymalizacje in-process/OPcache dla kodu i niezmiennej konfiguracji.
+
+3. **Dobierz właściwe wzorce cache**
+
+- Cache-aside dla danych read-heavy (najczęstsze).
+- Write-through/write-behind dla konkretnych przypadków spójności/wydajności.
+- Read-through, jeśli provider cache wspiera transparentne ładowanie.
+
+4. **Projektuj klucze i TTL świadomie**
+
+- Klucze namespacowane: `entity:{id}:v{version}`.
+- Różne TTL zależnie od zmienności danych i krytyczności biznesowej.
+- Dodawaj jitter do TTL, by ograniczyć thundering herd.
+
+5. **Obsługuj inwalidację jawnie**
+
+- Inwalidacja zdarzeniowa po zapisach.
+- Klucze wersjonowane do łatwej logicznej inwalidacji.
+- Inwalidacja tagowa, gdy jest wspierana.
+
+6. **Zabezpieczaj się przed awariami cache**
+
+- Ścieżka fallback, gdy cache nie działa (degradacja, ale funkcjonalność zachowana).
+- Coalescing/locking żądań, aby zapobiegać stampede.
+- Warm-up krytycznych kluczy po deployu/restarcie.
+
+7. **Mierz i stroń stale**
+
+- Monitoruj hit ratio, latency, eviction rate i presję pamięci.
+- Śledź incydenty stale-read i koszt cache-miss.
+- Optymalizuj na podstawie realnych śladów produkcyjnych.
+
+Silna strategia cache’owania to balans: maksymalizacja hit rate i zysków latency przy zachowaniu poprawności oraz przewidywalnego zachowania inwalidacji.
+
+</details>
+
+<details>
+  <summary><strong>#94. Czym nowoczesne frameworki PHP (Laravel, Symfony) różnią się wewnętrznie?</strong></summary>
+
+#### PHP
+
+Laravel i Symfony mają wiele wspólnych fundamentów (cykl życia żądania HTTP, DI, koncepcje middleware/zdarzeń), ale różnią się filozofią architektury, ustawieniami domyślnymi i modelem rozszerzalności.
+
+1. **Filozofia bazowa**
+
+- Symfony: podejście component-first, jawna konfiguracja, wysoka kompozycyjność.
+- Laravel: zintegrowane doświadczenie deweloperskie, silne konwencje, szybsze dostarczanie „out of the box”.
+
+2. **Dependency Injection i kontener**
+
+- Symfony ma kompilowany kontener DI z mocną walidacją i optymalizacją na etapie kompilacji.
+- Laravel używa bardzo dynamicznego kontenera usług z rozwiązywaniem w runtime i auto-wiringiem nastawionym na ergonomię dewelopera.
+
+3. **Model konfiguracji**
+
+- Symfony: konfiguracja-centric (`yaml/xml/php`), bundlery zależne od środowiska, jawne wiązanie.
+- Laravel: konwencje + service providery + facades; wiele funkcji działa przy minimalnej konfiguracji.
+
+4. **Wnętrze pipeline HTTP**
+
+- W Symfony przepływ requestu opiera się na `HttpKernel` i listenerach event dispatchera.
+- W Laravel przepływ requestu jest oparty na pipeline middleware z ekspresyjną integracją route/controller.
+
+5. **Domyślna warstwa ORM/danych**
+
+- Symfony najczęściej używa Doctrine ORM (wzorzec Data Mapper, jawne zachowanie unit-of-work).
+- Laravel dostarcza Eloquent (wzorzec Active Record, szybka ergonomia CRUD).
+
+6. **Struktura ekosystemu**
+
+- Komponenty Symfony są szeroko używane samodzielnie w całym ekosystemie PHP.
+- Ekosystem Laravel jest mocno zintegrowany (kolejki, joby, scheduler, Horizon, wzorce narzędzi typu Nova).
+
+7. **Profil wydajności i produkcyjny**
+
+- Oba mogą działać produkcyjnie w dużej skali.
+- Symfony często stawia na przewidywalność i jawną kontrolę w dużych systemach enterprise.
+- Laravel podkreśla szybkość implementacji i spójny workflow deweloperski.
+
+W skrócie: Symfony optymalizuje pod jawną architekturę i kompozycję komponentów; Laravel optymalizuje pod zintegrowaną produktywność i szybkie dostarczanie funkcji.
+
+</details>
+
+<details>
+  <summary><strong>#95. Jak działa routing we frameworkach?</strong></summary>
+
+#### PHP
+
+Routing mapuje przychodzące żądanie HTTP do konkretnego handlera (controller/action/closure) na podstawie metody, wzorca ścieżki, hosta i opcjonalnych ograniczeń.
+
+1. **Etap definicji tras**
+
+- Framework ładuje tabelę tras podczas uruchamiania (z plików/atrybutów/adnotacji).
+- Każda trasa przechowuje metodę(y), wzorzec ścieżki, handler, middleware i metadane.
+- Wiele frameworków prekompiluje/cache’uje definicje tras dla szybszego dopasowania.
+
+2. **Etap dopasowania żądania**
+
+- Router otrzymuje znormalizowaną ścieżkę żądania + metodę.
+- Najpierw próbuje dopasować trasy statyczne, potem dynamiczne parametryzowane.
+- Walidowane są ograniczenia (regex, host, scheme, locale).
+
+3. **Ekstrakcja parametrów**
+
+- Segmenty dynamiczne, np. `/users/{id}`, są wyciągane ze ścieżki.
+- Wartości są rzutowane/walidowane (jawnie lub przez reguły bindowania frameworka).
+- Dla brakujących parametrów opcjonalnych stosowane są wartości domyślne.
+
+4. **Middleware i guardy**
+
+- Przed wykonaniem handlera uruchamia się łańcuch middleware globalnych/grupowych/trasy.
+- Typowe kontrole: auth, rate limiting, CSRF, uprawnienia, tenant resolution.
+- Middleware może przerwać przepływ i zwrócić odpowiedź wcześniej.
+
+5. **Dispatch do kontrolera**
+
+- Kontener rozwiązuje zależności kontrolera.
+- Parametry trasy + wstrzyknięte serwisy są przekazywane do metody akcji.
+- Akcja zwraca obiekt odpowiedzi/dane do serializacji.
+
+6. **Reverse routing**
+
+- Framework potrafi generować URL-e z nazw tras + parametrów.
+- To eliminuje hardcoded URL-e i zwiększa bezpieczeństwo refaktoryzacji.
+
+7. **Aspekty wydajnościowe**
+
+- Cache/prekompilacja tras w produkcji.
+- Preferowanie tras specyficznych/statycznych nad zbyt szerokimi wildcardami.
+- Utrzymywanie minimalnego łańcucha middleware dla „gorących” endpointów.
+
+Wewnętrznie routing to zasadniczo indeksowane dopasowanie wzorców i pipeline dispatchu opakowany middleware i dependency injection.
+
+</details>
+
+<details>
+  <summary><strong>#96. Jak wewnętrznie działa pipeline middleware?</strong></summary>
+
+#### PHP
+
+Pipeline middleware to łańcuch odpowiedzialności: każdy middleware otrzymuje żądanie i callable „next”, po czym albo przekazuje sterowanie dalej, albo od razu zwraca odpowiedź.
+
+1. **Budowa pipeline’u**
+
+- Framework zbiera middleware globalne, grupowe i przypisane do trasy.
+- Rozwiązywana jest kolejność middleware (mogą obowiązywać reguły priorytetu).
+- Finalny handler docelowy (controller/action) ustawiany jest jako ostatni krok.
+
+2. **Model wykonania**
+
+- Sygnatura middleware koncepcyjnie: `handle(Request $request, Closure $next): Response`.
+- Middleware może zrobić pre-processing, potem wywołać `$next($request)`.
+- Po powrocie z next middleware może wykonać post-processing odpowiedzi.
+
+3. **Zachowanie short-circuit**
+
+- Middleware może zwrócić odpowiedź bez wywołania `$next`.
+- Typowe przypadki: błąd auth, błąd CSRF, przekroczony rate limit, maintenance mode.
+- To blokuje wykonanie dalszych middleware/kontrolera.
+
+4. **Zagnieżdżony stos wywołań**
+
+- Łańcuch często budowany jest przez owijanie closure od końca do początku.
+- Wykonanie „schodzi w dół” ścieżki requestu, a potem „odwija się” ścieżką odpowiedzi.
+- To umożliwia concerns przekrojowe, np. logowanie, pomiar czasu, wstrzykiwanie nagłówków.
+
+5. **Obsługa błędów i wyjątków**
+
+- Middleware/handler wyjątków może przechwytywać i normalizować błędy.
+- W części frameworków obsługa błędów jest poza stosem middleware, jako top-level logika kernela.
+- Spójne mapowanie błędów utrzymuje przewidywalność odpowiedzi API.
+
+6. **Typowe odpowiedzialności middleware**
+
+- Kontrole uwierzytelniania/autoryzacji.
+- Walidacja/sanitizacja żądań.
+- Rate limiting i mechanizmy anti-abuse.
+- Tracing, logowanie, metryki, correlation IDs.
+- Nagłówki CORS/security i transformacja odpowiedzi.
+
+7. **Aspekty wydajnościowe**
+
+- Utrzymuj minimalny łańcuch dla „gorących” tras.
+- Umieszczaj tanie kontrole reject-fast na początku.
+- Unikaj ciężkiego synchronicznego I/O w ogólnych middleware.
+
+Wewnętrznie middleware to po prostu uporządkowana kompozycja callable, która centralizuje concerns przekrojowe wokół przepływu request/response.
+
+</details>
+
+<details>
+  <summary><strong>#97. Jak działa mechanizm rozwiązywania zależności pod maską?</strong></summary>
+
+#### PHP
+
+Rozwiązywanie zależności w nowoczesnych frameworkach PHP realizuje kontener DI, który buduje obiekty na podstawie wiązań i metadanych konstruktorów, zwykle przez refleksję i cache’owane definicje.
+
+1. **Wiązania kontenera**
+
+- Interfejsy/abstrakcje mapowane są na konkretne implementacje.
+- Wiązania mogą być singleton, scoped albo transient.
+- Fabryki/closure mogą definiować niestandardową logikę tworzenia.
+
+2. **Żądanie rozwiązania**
+
+- Framework prosi kontener o typ (controller, service, middleware itp.).
+- Kontener sprawdza, czy instancja już istnieje (dla singleton/scoped lifetimes).
+- Jeśli nie, rozpoczyna budowę grafu obiektów.
+
+3. **Inspekcja konstruktora**
+
+- Kontener analizuje parametry konstruktora (refleksja albo metadane skompilowane).
+- Dla parametrów typowanych klasą rekurencyjnie rozwiązuje zależności.
+- Dla skalarów/wartości konfiguracyjnych używa jawnych parametrów, wiązań env/config albo wartości domyślnych.
+
+4. **Rekurencyjna budowa grafu obiektów**
+
+- Zależności są rozwiązywane metodą depth-first.
+- Wykrywanie zależności cyklicznych zapobiega nieskończonej rekurencji.
+- Zależności opcjonalne mogą być nullable/domyslne, jeśli nie są zbindowane.
+
+5. **Cykl życia i cache**
+
+- Singletony są cache’owane po pierwszym utworzeniu.
+- Instancje scoped są cache’owane per request/job scope.
+- Część kontenerów kompiluje metadane dla szybszego rozwiązywania w produkcji.
+
+6. **Wstrzykiwanie do metod/akcji**
+
+- Poza konstruktorami frameworki mogą wstrzykiwać zależności do akcji kontrolerów, handlerów komend i metod middleware.
+- Parametry trasy i serwisy z kontenera są łączone podczas dispatchu.
+
+7. **Tryby awarii**
+
+- Niezwiązany interfejs/abstrakcja.
+- Niejednoznaczny lub nieinstancjowalny łańcuch zależności.
+- Skalarne parametry konstruktora bez defaults/bindings.
+- Zależności cykliczne między serwisami.
+
+Pod maską rozwiązywanie DI to deterministyczna budowa grafu z regułami cyklu życia, refleksją/metadanymi i cache’owaniem dla wydajności.
+
+</details>
+
+<details>
+  <summary><strong>#98. Jakie są best practices nowoczesnego developmentu PHP w 2026 roku?</strong></summary>
+
+#### PHP
+
+Nowoczesne best practices PHP w 2026 roku koncentrują się na ścisłej dyscyplinie inżynierskiej: mocnym typowaniu, automatycznych bramkach jakości, bezpiecznych domyślnych ustawieniach i obserwowalnych systemach produkcyjnych.
+
+1. **Używaj świadomie aktualnych funkcji języka**
+
+- `declare(strict_types=1);` w kodzie aplikacji.
+- Typowane właściwości, typy zwracane, enumy, wzorce readonly/value-object.
+- Gdzie to możliwe, preferuj jawne kontrakty zamiast dynamicznej „magii”.
+
+2. **Architektura i organizacja kodu**
+
+- Granice modułów (domain/application/infrastructure lub odpowiednik).
+- Jasna separacja logiki biznesowej od kodu „klejącego” framework.
+- Dependency inversion przez interfejsy dla testowalności.
+
+3. **Automatyzacja jakości**
+
+- CI ze statyczną analizą (PHPStan/Psalm) na wysokiej restrykcyjności.
+- Spójny styl kodu przez PHP-CS-Fixer/Pint.
+- Testy unit + integracyjne + kontraktowe z realistycznymi fixture’ami.
+
+4. **Wydajność i efektywność runtime**
+
+- PHP 8.3/8.4+ z OPcache i dostrojonym PHP-FPM/process manager.
+- Najpierw profilowanie (Blackfire/XHProf/APM), potem optymalizacja hotspotów.
+- Cache/kolejki dla odchudzenia synchronicznej ścieżki requestu.
+
+5. **Security by default**
+
+- Prepared statements, kontekstowe escapowanie wyjścia, ochrona CSRF.
+- Zarządzanie sekretami poza repo; rotacja kluczy i least privilege.
+- Skanowanie podatności zależności w CI.
+
+6. **Dojrzałość operacyjna**
+
+- Ustrukturyzowane logi, metryki, tracing, correlation IDs.
+- Monitoring oparty o SLO z kontrolą alert fatigue.
+- Bezpieczne releasy: canary/blue-green i procedury rollbacku.
+
+7. **Higiena zależności i ekosystemu**
+
+- Utrzymuj zależności Composer aktualne według kontrolowanego harmonogramu.
+- Pinuj i audytuj pakiety krytyczne.
+- Unikaj zbędnego sprzęgania kodu domenowego z frameworkiem.
+
+8. **Konwencje zespołowe**
+
+- ADR-y dla kluczowych decyzji i jasne standardy code review.
+- Reguły kompatybilności wstecznej dla API publicznych/wewnętrznych.
+- Dokumentacja blisko kodu dla onboardingu i response na incydenty.
+
+Najsilniejsze zespoły PHP w 2026 traktują zdrowie codebase’u jak produkt: typowany, testowany, obserwowalny i stale ulepszany.
+
+</details>
+
+<details>
+  <summary><strong>#99. Jakie narzędzia są kluczowe dla nowoczesnego developera PHP?</strong></summary>
+
+#### PHP
+
+Skuteczny nowoczesny toolkit PHP obejmuje kodowanie, jakość, debugowanie, dostarczanie i operacje.
+
+1. **Podstawy języka i zarządzania pakietami**
+
+- Runtime PHP 8.3/8.4+.
+- Composer do zależności i autoloadingu.
+- Narzędzia lokalnego środowiska: Docker/DDEV/Lando albo natywny, odtwarzalny setup.
+
+2. **Jakość kodu i analiza statyczna**
+
+- PHPStan albo Psalm do analizy statycznej.
+- PHP-CS-Fixer albo Pint do standardów kodowania.
+- PHP_CodeSniffer tam, gdzie potrzebne są niestandardowe standardy.
+
+3. **Stos testowy**
+
+- PHPUnit albo Pest do testów unit/integracyjnych.
+- Biblioteki mocking/test doubles według potrzeb.
+- Raportowanie pokrycia zintegrowane z CI.
+
+4. **Debugowanie i profilowanie**
+
+- Xdebug do debugowania krokowego.
+- Blackfire/Tideways/XHProf/APM profiler do bottlenecków wydajności.
+- Narzędzia structured logging i scentralizowany podgląd logów.
+
+5. **Narzędzia frameworkowe i DX**
+
+- Laravel Artisan albo Symfony Console.
+- Narzędzia debug/profiler specyficzne dla frameworka.
+- Narzędzia API: Postman/Insomnia + walidacja OpenAPI.
+
+6. **Narzędzia danych i infrastruktury**
+
+- Redis i DB CLI (`redis-cli`, `psql`, `mysql`) do diagnostyki.
+- Dashboardy monitoringu kolejek/workerów.
+- Narzędzia migracji i zarządzania schematem.
+
+7. **CI/CD i automatyzacja**
+
+- GitHub Actions/GitLab CI albo odpowiednik.
+- Automatyczne bramki: lint, analiza statyczna, testy, security scan.
+- Automatyzacja wdrożeń z możliwością rollbacku.
+
+8. **Bezpieczeństwo i higiena zależności**
+
+- `composer audit` i/lub skanery SCA.
+- Secret scanning i hooki pre-commit.
+- SAST/DAST tam, gdzie wymaga tego profil ryzyka.
+
+9. **Obserwowalność i operacje**
+
+- Stack metryk, tracingu i alertingu (Prometheus/Grafana/APM).
+- Error tracking (Sentry/Bugsnag).
+- Korelacja logów z request IDs.
+
+Niezbędny zestaw to ten, który wymusza szybkie pętle feedbacku: kontrolę jakości kodu, wiarygodne testy, bezpieczne dostarczanie i widoczność produkcji.
+
+</details>
+
+<details>
+  <summary><strong>#100. Jak utrzymać długoterminową utrzymywalność codebase’u PHP?</strong></summary>
+
+#### PHP
+
+Długoterminową utrzymywalność osiąga się przez połączenie standardów technicznych, dyscypliny architektonicznej i ciągłego feedbacku operacyjnego.
+
+1. **Utrzymuj jawną architekturę**
+
+- Egzekwuj czytelne granice modułów i ownership.
+- Oddziel logikę domenową od szczegółów frameworka/infrastruktury.
+- Ograniczaj ukryte sprzężenia i globalny stan.
+
+2. **Stawiaj czytelność ponad „spryt”**
+
+- Małe, skupione klasy/funkcje z jasnym nazewnictwem.
+- Spójne konwencje w całym codebase.
+- Preferuj jawne zachowanie zamiast magicznych abstrakcji.
+
+3. **Traktuj bezpieczeństwo typów poważnie**
+
+- `strict_types=1` tam, gdzie to możliwe.
+- Silne typowanie parametrów/wartości zwracanych/właściwości.
+- Analiza statyczna (PHPStan/Psalm) jako obowiązkowa bramka CI.
+
+4. **Buduj odporny portfel testów**
+
+- Szybkie testy unit dla logiki core.
+- Testy integracyjne dla granic DB/zależności zewnętrznych.
+- Testy kontraktowe dla API/zdarzeń współdzielonych z innymi usługami.
+
+5. **Kontroluj zależności i aktualizacje**
+
+- Regularny cykl aktualizacji zależności zamiast rzadkich „big-bang” upgrade’ów.
+- Śledzenie changelogów i deprecacji frameworka/runtime.
+- Proaktywne usuwanie nieużywanych pakietów i martwych abstrakcji.
+
+6. **Projektuj pod bezpieczne zmiany**
+
+- Reguły kompatybilności wstecznej dla publicznych API.
+- Feature flagi dla ryzykownych rolloutów.
+- Migracje i zmiany danych z planami rollback/repair.
+
+7. **Instytucjonalizuj proces jakości kodu**
+
+- Checklisty code review (poprawność, bezpieczeństwo, wydajność, czytelność).
+- Automatyczne formatowanie/linting, aby zmniejszyć szum podczas review.
+- ADR-y dla kluczowych decyzji, by zachować kontekst w czasie.
+
+8. **Pętla feedbacku operacyjnego**
+
+- Obserwowalność produkcji: logi, metryki, tracing, error tracking.
+- Post-incident review z konkretnymi usprawnieniami kodu/procesu.
+- Priorytetyzacja oparta o SLO, aby utrzymać widoczność niezawodności.
+
+9. **Chroń ciągłość zespołu**
+
+- Aktualna dokumentacja setupu, architektury i runbooków.
+- Przewodniki onboardingowe i wspólne standardy inżynierskie.
+- Redukcja ryzyka „single expert” przez dzielenie wiedzy i rotację.
+
+Utrzymywalny codebase PHP nie jest statyczny; jest stale pielęgnowany przez standardy, automatyzację i świadome upraszczanie.
+
+</details>
